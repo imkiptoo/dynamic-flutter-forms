@@ -1,3 +1,4 @@
+import 'package:dynamic_flutter_forms/src/widgets/form_field_shimmer.dart';
 import 'package:flutter/material.dart';
 import '../models/form_field.dart';
 import '../models/form_state.dart';
@@ -24,6 +25,9 @@ class DynamicFormController {
   final List<CustomFormField> _formFields;
   final OnFormValidate? _onValidate;
 
+  /// Whether the form is in a loading state
+  bool isLoading = false;
+
   /// Creates a new [DynamicFormController] instance.
   DynamicFormController({
     required List<CustomFormField> formFields,
@@ -47,6 +51,14 @@ class DynamicFormController {
       );
     }
   }
+
+  /// Sets the loading state of the form
+  void setLoading(bool loading) {
+    isLoading = loading;
+  }
+
+  /// Gets whether the form is currently loading or submitting
+  bool get isProcessing => isLoading || _formState.isSubmitting;
 
   /// Submits the form programmatically.
   Future<bool> submit() async {
@@ -194,6 +206,9 @@ class DynamicForm extends StatefulWidget {
   /// Controller for the form.
   final DynamicFormController? controller;
 
+  /// Whether the form is in a loading state.
+  final bool isLoading;
+
   /// Creates a new [DynamicForm] widget.
   ///
   /// [formFields] is the list of form fields to display.
@@ -206,6 +221,7 @@ class DynamicForm extends StatefulWidget {
   /// [resetButtonText] is the text for the reset button.
   /// [showConfirmationDialogs] determines whether to show confirmation dialogs.
   /// [controller] is a controller for the form.
+  /// [isLoading] determines whether the form is in a loading state.
   const DynamicForm({
     Key? key,
     required this.formFields,
@@ -218,6 +234,7 @@ class DynamicForm extends StatefulWidget {
     this.resetButtonText = 'Reset',
     this.showConfirmationDialogs = true,
     this.controller,
+    this.isLoading = false,
   }) : super(key: key);
 
   @override
@@ -414,6 +431,9 @@ class _DynamicFormState extends State<DynamicForm> {
     final formTheme = widget.theme ?? DynamicFormTheme.of(context);
     final formState = _controller.formState;
 
+    // Check if form is disabled (either submitting or loading)
+    final bool isFormDisabled = _isSubmitting || widget.isLoading;
+
     return Theme(
       data: Theme.of(context).copyWith(
         extensions: <ThemeExtension<dynamic>>[
@@ -436,23 +456,49 @@ class _DynamicFormState extends State<DynamicForm> {
                       style: TextStyle(color: formTheme.errorColor),
                     ),
                   ),
-                ...widget.formFields.map((field) => FormWidgets.buildFormField(
-                      field,
-                      _controller.controllers,
-                      _controller.focusNodes,
-                      formState,
-                      _updateFieldState,
-                      context,
-                      widget.formFields,
-                    )),
+
+                // Show either shimmer placeholders or actual form fields
+                if (widget.isLoading)
+                // Show shimmer placeholders for loading state
+                  ...widget.formFields.map((field) =>
+                      FormFieldShimmer.buildShimmerField(field, context)
+                  )
+                else
+                // Show actual form fields
+                  ...widget.formFields.map((field) => FormWidgets.buildFormField(
+                    field.copyWith(
+                      // Only disable during submission, not during loading
+                      // This is because we now show shimmer instead of disabled fields during loading
+                      disabled: field.disabled || _isSubmitting,
+                    ),
+                    _controller.controllers,
+                    _controller.focusNodes,
+                    formState,
+                    _updateFieldState,
+                    context,
+                    widget.formFields,
+                  )),
+
+                // Buttons section
                 Container(
                   padding: EdgeInsets.only(left: 16, right: 0, top: 8, bottom: 16),
                   child: Row(
                     children: [
                       if (widget.showResetButton)
                         Expanded(
-                          child: InkWell(
-                            onTap: () async {
+                          child: widget.isLoading
+                          // Shimmer for reset button during loading
+                              ? FormFieldShimmer.buildShimmerField(
+                              CustomFormField(
+                                id: 'reset-button-shimmer',
+                                label: '',
+                                type: FieldType.text,
+                              ),
+                              context
+                          )
+                          // Regular reset button
+                              : InkWell(
+                            onTap: isFormDisabled ? null : () async {
                               if (await _confirmReset()) {
                                 _resetForm();
                               }
@@ -463,17 +509,17 @@ class _DynamicFormState extends State<DynamicForm> {
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 border: Border.all(
-                                  color: Colors.red.shade700,
+                                  color: isFormDisabled ? Colors.black38 : Colors.red.shade700,
                                   width: 1.25,
                                 ),
                                 borderRadius: BorderRadius.circular(formTheme.borderRadius),
-                                color: Colors.red.shade50,
+                                color: isFormDisabled ? Colors.black12 : Colors.red.shade50,
                               ),
                               height: 40,
                               child: Text(
-                                'Clear Form',
+                                widget.resetButtonText,
                                 style: TextStyle(
-                                  color: Colors.red.shade700,
+                                  color: isFormDisabled ? Colors.black38 : Colors.red.shade700,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -483,40 +529,51 @@ class _DynamicFormState extends State<DynamicForm> {
                         ),
                       SizedBox(width: 16),
                       Expanded(
-                        child: InkWell(
-                          onTap: _isSubmitting ? null : _submitForm,
+                        child: widget.isLoading
+                        // Shimmer for submit button during loading
+                            ? FormFieldShimmer.buildShimmerField(
+                            CustomFormField(
+                              id: 'submit-button-shimmer',
+                              label: '',
+                              type: FieldType.text,
+                            ),
+                            context
+                        )
+                        // Regular submit button
+                            : InkWell(
+                          onTap: isFormDisabled ? null : _submitForm,
                           radius: formTheme.borderRadius,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               border: Border.all(
-                                color: _isSubmitting ? Colors.black38 : Colors.green.shade700,
+                                color: isFormDisabled ? Colors.black38 : Colors.green.shade700,
                                 width: 1.25,
                               ),
                               borderRadius: BorderRadius.circular(formTheme.borderRadius),
-                              color: _isSubmitting ? Colors.black12 : Colors.green.shade700,
+                              color: isFormDisabled ? Colors.black12 : Colors.green.shade700,
                             ),
                             height: 40,
                             child: _isSubmitting
                                 ? SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        _isSubmitting ? Colors.black38 : Theme.of(context).colorScheme.onPrimary,
-                                      ),
-                                    ),
-                                  )
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.black38,
+                                ),
+                              ),
+                            )
                                 : Text(
-                                    'Submit Form',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                              widget.submitButtonText,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                       ),
