@@ -35,7 +35,7 @@ class FormWidgets {
             children: [
               Container(
                 width: 16,
-                alignment: Alignment.topCenter,
+                alignment: Alignment.center,
                 padding: EdgeInsets.only(top: field.type == FieldType.spacer ? 0 : 16),
                 child: field.required
                     ? Text(
@@ -301,42 +301,66 @@ class FormWidgets {
 
   /// Builds a date and time picker field.
   static Widget buildDateTimeField(
-    CustomFormField field,
-    Map<String, TextEditingController> controllers,
-    Map<String, FocusNode> focusNodes,
-    CustomFormState formState,
-    Function(String, String) updateFieldState,
-    BuildContext context,
-  ) {
+      CustomFormField field,
+      Map<String, TextEditingController> controllers,
+      Map<String, FocusNode> focusNodes,
+      CustomFormState formState,
+      Function(String, String) updateFieldState,
+      BuildContext context,
+      ) {
     return GestureDetector(
       onTap: field.disabled || field.readonly
           ? null
           : () async {
-              DateTime? pickedDate = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now(),
-                firstDate: DateTime(1900),
-                lastDate: DateTime(2100),
+        // Parse existing date if available
+        DateTime initialDate = DateTime.now();
+        if (controllers[field.id]?.text.isNotEmpty == true) {
+          try {
+            initialDate = DateFormat(field.format ?? 'yyyy-MM-dd h:mm a').parse(controllers[field.id]!.text);
+          } catch (e) {
+            // If parsing fails, use current date
+          }
+        }
+
+        DateTime? pickedDate = await showDatePicker(
+          context: context,
+          initialDate: initialDate,
+          firstDate: DateTime(1900),
+          lastDate: DateTime(2100),
+        );
+        if (pickedDate != null) {
+          TimeOfDay initialTime = TimeOfDay.fromDateTime(initialDate);
+          TimeOfDay? pickedTime = await showTimePicker(
+            context: context,
+            initialTime: initialTime,
+            builder: (BuildContext context, Widget? child) {
+              // Force 12-hour format
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  alwaysUse24HourFormat: false,
+                ),
+                child: child!,
               );
-              if (pickedDate != null) {
-                TimeOfDay? pickedTime = await showTimePicker(
-                  context: context,
-                  initialTime: TimeOfDay.now(),
-                );
-                if (pickedTime != null) {
-                  DateTime dateTime = DateTime(
-                    pickedDate.year,
-                    pickedDate.month,
-                    pickedDate.day,
-                    pickedTime.hour,
-                    pickedTime.minute,
-                  );
-                  String formattedDateTime = DateFormat(field.format ?? 'yyyy-MM-dd HH:mm').format(dateTime);
-                  controllers[field.id]?.text = formattedDateTime;
-                  updateFieldState(field.id, formattedDateTime);
-                }
-              }
             },
+          );
+          if (pickedTime != null) {
+            DateTime dateTime = DateTime(
+              pickedDate.year,
+              pickedDate.month,
+              pickedDate.day,
+              pickedTime.hour,
+              pickedTime.minute,
+            );
+
+            // Use AM/PM format if no specific format is provided
+            String formatPattern = field.format ?? 'yyyy-MM-dd h:mm a';
+            String formattedDateTime = DateFormat(formatPattern).format(dateTime);
+
+            controllers[field.id]?.text = formattedDateTime;
+            updateFieldState(field.id, formattedDateTime);
+          }
+        }
+      },
       child: AbsorbPointer(
         child: TextFormField(
           key: Key(field.id),
@@ -453,7 +477,7 @@ class FormWidgets {
           height: 1,
           margin: EdgeInsets.only(bottom: 0),
           decoration: BoxDecoration(
-            color: Colors.grey,
+            color: Colors.black26,
           ),
         ),
       ],

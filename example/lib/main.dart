@@ -92,6 +92,15 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
       format: 'd/M/yyyy',
     ),
     CustomFormField(
+      id: 'date_reported',
+      label: 'Date & Time Reported',
+      type: FieldType.datetime,
+      placeholder: 'Enter Date & Time Reported',
+      required: true,
+      enableMask: true,
+      format: 'd MMM yyyy hh:mm a',
+    ),
+    CustomFormField(
       id: 'spacer-1',
       label: '',
       type: FieldType.spacer,

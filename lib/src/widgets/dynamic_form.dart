@@ -28,7 +28,7 @@ class DynamicFormController {
   DynamicFormController({
     required List<CustomFormField> formFields,
     OnFormValidate? onValidate,
-  }) : _formFields = formFields,
+  })  : _formFields = formFields,
         _onValidate = onValidate {
     _initializeForm();
   }
@@ -225,10 +225,11 @@ class _DynamicFormState extends State<DynamicForm> {
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller ?? DynamicFormController(
-      formFields: widget.formFields,
-      onValidate: widget.onValidate,
-    );
+    _controller = widget.controller ??
+        DynamicFormController(
+          formFields: widget.formFields,
+          onValidate: widget.onValidate,
+        );
   }
 
   @override
@@ -238,10 +239,11 @@ class _DynamicFormState extends State<DynamicForm> {
       if (oldWidget.controller == null) {
         _controller.dispose();
       }
-      _controller = widget.controller ?? DynamicFormController(
-        formFields: widget.formFields,
-        onValidate: widget.onValidate,
-      );
+      _controller = widget.controller ??
+          DynamicFormController(
+            formFields: widget.formFields,
+            onValidate: widget.onValidate,
+          );
     }
   }
 
@@ -265,23 +267,23 @@ class _DynamicFormState extends State<DynamicForm> {
     }
 
     return await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Reset Form?'),
-        content: Text('Are you sure you want to reset all fields to their initial values?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel'),
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Reset Form?'),
+            content: Text('Are you sure you want to reset all fields to their initial values?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+                child: Text('Reset'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
-            child: Text('Reset'),
-          ),
-        ],
-      ),
-    ) ??
+        ) ??
         false;
   }
 
@@ -348,22 +350,23 @@ class _DynamicFormState extends State<DynamicForm> {
     }
 
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Submit Form?'),
-        content: const Text('Are you sure you want to submit the form?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Submit Form?'),
+            content: const Text('Are you sure you want to submit the form?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Submit'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Submit'),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   @override
@@ -394,58 +397,67 @@ class _DynamicFormState extends State<DynamicForm> {
                     ),
                   ),
                 ...widget.formFields.map((field) => FormWidgets.buildFormField(
-                  field,
-                  _controller.controllers,
-                  _controller.focusNodes,
-                  formState,
-                  _updateFieldState,
-                  context,
-                  widget.formFields,
-                )),
-                Row(
-                  children: [
-                    if (widget.showResetButton)
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: OutlinedButton(
-                            onPressed: () async {
-                              if (await _confirmReset()) {
-                                _resetForm();
-                              }
-                            },
-                            style: OutlinedButton.styleFrom(
-                              padding: formTheme.buttonPadding,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(formTheme.borderRadius),
+                      field,
+                      _controller.controllers,
+                      _controller.focusNodes,
+                      formState,
+                      _updateFieldState,
+                      context,
+                      widget.formFields,
+                    )),
+                Container(
+                  padding: EdgeInsets.only(left: 16, right: 0, top: 8, bottom: 16),
+                  child: Row(
+                    children: [
+                      if (widget.showResetButton)
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 16),
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                if (await _confirmReset()) {
+                                  _resetForm();
+                                }
+                              },
+                              style: OutlinedButton.styleFrom(
+                                padding: formTheme.buttonPadding,
+                                backgroundColor: Colors.red.shade50,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(formTheme.borderRadius),
+                                  side: BorderSide(color: Colors.red)
+                                ),
+                                shadowColor: Colors.transparent,
+                              ),
+                              child: Text(
+                                widget.resetButtonText,
+                                style: TextStyle(fontSize: 16, color: Colors.red.shade700),
                               ),
                             ),
-                            child: Text(widget.resetButtonText),
                           ),
                         ),
-                      ),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submitForm,
-                        style: FormStyles.buttonStyle(context),
-                        child: _isSubmitting
-                            ? SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          ),
-                        )
-                            : Text(
-                          widget.submitButtonText,
-                          style: TextStyle(fontSize: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _isSubmitting ? null : _submitForm,
+                          style: FormStyles.buttonStyle(context),
+                          child: _isSubmitting
+                              ? SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Theme.of(context).colorScheme.onPrimary,
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  widget.submitButtonText,
+                                  style: TextStyle(fontSize: 16),
+                                ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
