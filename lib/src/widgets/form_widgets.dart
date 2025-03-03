@@ -451,7 +451,7 @@ class FormWidgets {
         field.label.isEmpty ? SizedBox() : SizedBox(height: 4),
         Container(
           height: 1,
-          margin: EdgeInsets.only(bottom: 16),
+          margin: EdgeInsets.only(bottom: 0),
           decoration: BoxDecoration(
             color: Colors.grey,
           ),

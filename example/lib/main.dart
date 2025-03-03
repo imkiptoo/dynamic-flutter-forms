@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
           DynamicFormTheme(
             borderRadius: 8.0,
             fieldPadding: const EdgeInsets.only(bottom: 16.0),
-            formPadding: const EdgeInsets.all(16.0),
+            formPadding: const EdgeInsets.only(left: 0, right: 16),
             buttonPadding: const EdgeInsets.symmetric(vertical: 16.0),
             requiredColor: Colors.red,
             modifiedColor: Colors.blue,
@@ -30,6 +30,7 @@ class MyApp extends StatelessWidget {
         ],
       ),
       home: const ExampleFormScreen(),
+      locale: Locale("en", "US"),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -159,7 +160,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
     // Simulate API call
     await Future.delayed(const Duration(seconds: 1));
 
-    print('Form data: $formData');
+    debugPrint('Form data: $formData');
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -170,7 +171,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
   }
 
   void _handleReset() {
-    print('Form reset');
+    debugPrint('Form reset');
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
