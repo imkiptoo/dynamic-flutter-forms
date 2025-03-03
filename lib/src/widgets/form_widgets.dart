@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dynamic_flutter_forms/dynamic_forms.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -23,7 +24,7 @@ class FormWidgets {
     Map<String, TextEditingController> controllers,
     Map<String, FocusNode> focusNodes,
     CustomFormState formState,
-    Function(String, String) updateFieldState,
+    Function(String, dynamic) updateFieldState,
     BuildContext context,
     List<CustomFormField> formFields,
   ) {
@@ -70,7 +71,7 @@ class FormWidgets {
     Map<String, TextEditingController> controllers,
     Map<String, FocusNode> focusNodes,
     CustomFormState formState,
-    Function(String, String) updateFieldState,
+    Function(String, dynamic) updateFieldState,
     BuildContext context,
     List<CustomFormField> formFields,
   ) {
@@ -102,7 +103,7 @@ class FormWidgets {
     Map<String, TextEditingController> controllers,
     Map<String, FocusNode> focusNodes,
     CustomFormState formState,
-    Function(String, String) updateFieldState,
+    Function(String, dynamic) updateFieldState,
     BuildContext context,
     List<CustomFormField> formFields,
   ) {
@@ -162,7 +163,7 @@ class FormWidgets {
     CustomFormField field,
     Map<String, TextEditingController> controllers,
     CustomFormState formState,
-    Function(String, String) updateFieldState,
+    Function(String, dynamic) updateFieldState,
     BuildContext context,
   ) {
     final currentValue = controllers[field.id]?.text;
@@ -205,7 +206,7 @@ class FormWidgets {
     CustomFormField field,
     Map<String, TextEditingController> controllers,
     CustomFormState formState,
-    Function(String, String) updateFieldState,
+    Function(String, dynamic) updateFieldState,
     BuildContext context,
   ) {
     // Simple implementation that uses a comma-separated string
@@ -230,7 +231,11 @@ class FormWidgets {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  currentValues.isNotEmpty ? SizedBox(height: Platform.isAndroid || Platform.isIOS ? 0 : 8,) : Container(),
+                  currentValues.isNotEmpty
+                      ? SizedBox(
+                          height: Platform.isAndroid || Platform.isIOS ? 0 : 8,
+                        )
+                      : Container(),
                   Wrap(
                     spacing: Platform.isAndroid || Platform.isIOS ? 8 : 12.0,
                     runSpacing: Platform.isAndroid || Platform.isIOS ? 0 : 8.0,
@@ -244,7 +249,6 @@ class FormWidgets {
 
                       return Chip(
                         labelPadding: EdgeInsets.all(0),
-                        padding: EdgeInsets.only(left: 8),
                         label: Text(name),
                         onDeleted: field.disabled || field.readonly
                             ? null
@@ -303,66 +307,66 @@ class FormWidgets {
 
   /// Builds a date and time picker field.
   static Widget buildDateTimeField(
-      CustomFormField field,
-      Map<String, TextEditingController> controllers,
-      Map<String, FocusNode> focusNodes,
-      CustomFormState formState,
-      Function(String, String) updateFieldState,
-      BuildContext context,
-      ) {
+    CustomFormField field,
+    Map<String, TextEditingController> controllers,
+    Map<String, FocusNode> focusNodes,
+    CustomFormState formState,
+    Function(String, dynamic) updateFieldState,
+    BuildContext context,
+  ) {
     return GestureDetector(
       onTap: field.disabled || field.readonly
           ? null
           : () async {
-        // Parse existing date if available
-        DateTime initialDate = DateTime.now();
-        if (controllers[field.id]?.text.isNotEmpty == true) {
-          try {
-            initialDate = DateFormat(field.format ?? 'yyyy-MM-dd h:mm a').parse(controllers[field.id]!.text);
-          } catch (e) {
-            // If parsing fails, use current date
-          }
-        }
+              // Parse existing date if available
+              DateTime initialDate = DateTime.now();
+              if (controllers[field.id]?.text.isNotEmpty == true) {
+                try {
+                  initialDate = DateFormat(field.format ?? 'yyyy-MM-dd h:mm a').parse(controllers[field.id]!.text);
+                } catch (e) {
+                  // If parsing fails, use current date
+                }
+              }
 
-        DateTime? pickedDate = await showDatePicker(
-          context: context,
-          initialDate: initialDate,
-          firstDate: DateTime(1900),
-          lastDate: DateTime(2100),
-        );
-        if (pickedDate != null) {
-          TimeOfDay initialTime = TimeOfDay.fromDateTime(initialDate);
-          TimeOfDay? pickedTime = await showTimePicker(
-            context: context,
-            initialTime: initialTime,
-            builder: (BuildContext context, Widget? child) {
-              // Force 12-hour format
-              return MediaQuery(
-                data: MediaQuery.of(context).copyWith(
-                  alwaysUse24HourFormat: false,
-                ),
-                child: child!,
+              DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: initialDate,
+                firstDate: DateTime(1900),
+                lastDate: DateTime(2100),
               );
+              if (pickedDate != null) {
+                TimeOfDay initialTime = TimeOfDay.fromDateTime(initialDate);
+                TimeOfDay? pickedTime = await showTimePicker(
+                  context: context,
+                  initialTime: initialTime,
+                  builder: (BuildContext context, Widget? child) {
+                    // Force 12-hour format
+                    return MediaQuery(
+                      data: MediaQuery.of(context).copyWith(
+                        alwaysUse24HourFormat: false,
+                      ),
+                      child: child!,
+                    );
+                  },
+                );
+                if (pickedTime != null) {
+                  DateTime dateTime = DateTime(
+                    pickedDate.year,
+                    pickedDate.month,
+                    pickedDate.day,
+                    pickedTime.hour,
+                    pickedTime.minute,
+                  );
+
+                  // Use AM/PM format if no specific format is provided
+                  String formatPattern = field.format ?? 'yyyy-MM-dd h:mm a';
+                  String formattedDateTime = DateFormat(formatPattern).format(dateTime);
+
+                  controllers[field.id]?.text = formattedDateTime;
+                  updateFieldState(field.id, formattedDateTime);
+                }
+              }
             },
-          );
-          if (pickedTime != null) {
-            DateTime dateTime = DateTime(
-              pickedDate.year,
-              pickedDate.month,
-              pickedDate.day,
-              pickedTime.hour,
-              pickedTime.minute,
-            );
-
-            // Use AM/PM format if no specific format is provided
-            String formatPattern = field.format ?? 'yyyy-MM-dd h:mm a';
-            String formattedDateTime = DateFormat(formatPattern).format(dateTime);
-
-            controllers[field.id]?.text = formattedDateTime;
-            updateFieldState(field.id, formattedDateTime);
-          }
-        }
-      },
       child: AbsorbPointer(
         child: TextFormField(
           key: Key(field.id),
@@ -389,7 +393,7 @@ class FormWidgets {
     Map<String, TextEditingController> controllers,
     Map<String, FocusNode> focusNodes,
     CustomFormState formState,
-    Function(String, String) updateFieldState,
+    Function(String, dynamic) updateFieldState,
     BuildContext context,
   ) {
     return TextFormField(
@@ -419,7 +423,7 @@ class FormWidgets {
     Map<String, TextEditingController> controllers,
     Map<String, FocusNode> focusNodes,
     CustomFormState formState,
-    Function(String, String) updateFieldState,
+    Function(String, dynamic) updateFieldState,
     BuildContext context,
   ) {
     return GestureDetector(
@@ -491,34 +495,45 @@ class FormWidgets {
     CustomFormField field,
     Map<String, TextEditingController> controllers,
     CustomFormState formState,
-    Function(String, String) updateFieldState,
+    Function(String, dynamic) updateFieldState,
     BuildContext context,
   ) {
     bool currentValue = controllers[field.id]?.text.toLowerCase() == 'true';
 
-    return GestureDetector(
+    return TextFormField(
+      key: Key(field.id),
+      controller: controllers[field.id],
+      enabled: !field.disabled,
+      readOnly: true,
+      keyboardType: _getKeyboardType(field.type),
+      maxLines: field.multiline ? field.rows : 1,
+      canRequestFocus: false,
       onTap: field.disabled || field.readonly
           ? null
           : () {
-              controllers[field.id]?.text = (!currentValue).toString();
-              updateFieldState(field.id, (!currentValue).toString());
-            },
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: FormStyles.getBorderColor(context, field.id, formState),
-          ),
-          borderRadius: BorderRadius.circular(8.0),
-          color: FormStyles.getFieldColor(context, field.id, formState),
-        ),
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Row(
+        final newValue = (!currentValue).toString();
+        controllers[field.id]?.text = newValue;
+        updateFieldState(field.id, newValue);
+      },
+      style: TextStyle(
+        color: Colors.transparent,
+      ),
+      decoration: FormStyles.inputDecoration(
+        context: context,
+        labelText: field.label,
+        hintText: field.placeholder,
+        fieldId: field.id,
+        formState: formState,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+      ).copyWith(
+        suffix: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              field.label,
+              currentValue ? "Yes" : "No",
               style: TextStyle(fontSize: 16),
             ),
+            SizedBox(width: 8,),
             Container(
               width: 48,
               height: 24,
@@ -552,6 +567,7 @@ class FormWidgets {
           ],
         ),
       ),
+      onChanged: (value) => updateFieldState(field.id, value),
     );
   }
 
@@ -561,7 +577,7 @@ class FormWidgets {
     Map<String, TextEditingController> controllers,
     Map<String, FocusNode> focusNodes,
     CustomFormState formState,
-    Function(String, String) updateFieldState,
+    Function(String, dynamic) updateFieldState,
     BuildContext context,
   ) {
     // For simplicity, just rendering a text field

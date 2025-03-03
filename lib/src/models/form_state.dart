@@ -36,7 +36,14 @@ class CustomFormFieldState {
   }) : initialValue = initialValue ?? value;
 
   /// Whether the field has been truly modified from its initial value.
-  bool get isModified => value != initialValue;
+  bool get isModified {
+    // Special handling for boolean values (stored as strings)
+    if ((value == 'true' || value == 'false') &&
+        (initialValue == 'true' || initialValue == 'false')) {
+      return value.toLowerCase() != initialValue.toLowerCase();
+    }
+    return value != initialValue;
+  }
 
   /// Creates a copy of this [CustomFormFieldState] with the given fields replaced.
   CustomFormFieldState copyWith({

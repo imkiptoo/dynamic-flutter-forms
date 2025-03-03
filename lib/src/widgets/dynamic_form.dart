@@ -25,8 +25,11 @@ class DynamicFormController {
   final List<CustomFormField> _formFields;
   final OnFormValidate? _onValidate;
 
-  /// Whether the form is in a loading state
+  /// Whether the form is in a loading state (showing shimmer)
   bool isLoading = false;
+
+  /// Whether the form is in a submitting state (disabled but no shimmer)
+  bool isSubmitting = false;
 
   /// Creates a new [DynamicFormController] instance.
   DynamicFormController({
@@ -52,13 +55,19 @@ class DynamicFormController {
     }
   }
 
-  /// Sets the loading state of the form
+  /// Sets the loading state of the form (showing shimmer)
   void setLoading(bool loading) {
     isLoading = loading;
   }
 
-  /// Gets whether the form is currently loading or submitting
-  bool get isProcessing => isLoading || _formState.isSubmitting;
+  /// Sets the submitting state of the form (disabled without shimmer)
+  void setSubmitting(bool submitting) {
+    isSubmitting = submitting;
+    _formState.isSubmitting = submitting;
+  }
+
+  /// Gets whether the form is currently being processed (either loading or submitting)
+  bool get isProcessing => isLoading || isSubmitting || _formState.isSubmitting;
 
   /// Submits the form programmatically.
   Future<bool> submit() async {
@@ -148,15 +157,19 @@ class DynamicFormController {
   void updateFieldState(String fieldId, String value) {
     final field = _formState.fields[fieldId];
     if (field != null) {
-      final customField = _formFields.firstWhere((f) => f.id == fieldId, orElse: () => throw Exception('Field not found: $fieldId'));
+      final customField = _formFields.firstWhere((f) => f.id == fieldId,
+          orElse: () => throw Exception('Field not found: $fieldId'));
 
       final error = validateField(customField, value);
 
-      // Check if the value is reverting back to the initial value
-      bool isRevertingToInitial = (value == field.initialValue);
+      // Check if the value is different from the initial value
+      // For boolean fields, convert to lowercase for comparison
+      final initialValue = field.initialValue.toLowerCase();
+      final newValue = value.toLowerCase();
+      final isModified = initialValue != newValue;
 
       field.value = value;
-      field.initial = isRevertingToInitial; // Set back to initial state if values match
+      field.initial = !isModified; // Set initial to false if modified
       field.submitted = false;
       field.valid = error == null;
       field.error = error;
@@ -206,7 +219,7 @@ class DynamicForm extends StatefulWidget {
   /// Controller for the form.
   final DynamicFormController? controller;
 
-  /// Whether the form is in a loading state.
+  /// Whether the form is in a loading state (displays shimmer).
   final bool isLoading;
 
   /// Creates a new [DynamicForm] widget.
@@ -221,7 +234,7 @@ class DynamicForm extends StatefulWidget {
   /// [resetButtonText] is the text for the reset button.
   /// [showConfirmationDialogs] determines whether to show confirmation dialogs.
   /// [controller] is a controller for the form.
-  /// [isLoading] determines whether the form is in a loading state.
+  /// [isLoading] determines whether the form is in a loading state (displays shimmer).
   const DynamicForm({
     Key? key,
     required this.formFields,
@@ -278,7 +291,7 @@ class _DynamicFormState extends State<DynamicForm> {
     super.dispose();
   }
 
-  void _updateFieldState(String fieldId, String value) {
+  void _updateFieldState(String fieldId, dynamic value) {
     setState(() {
       _controller.updateFieldState(fieldId, value);
     });
@@ -431,8 +444,8 @@ class _DynamicFormState extends State<DynamicForm> {
     final formTheme = widget.theme ?? DynamicFormTheme.of(context);
     final formState = _controller.formState;
 
-    // Check if form is disabled (either submitting or loading)
-    final bool isFormDisabled = _isSubmitting || widget.isLoading;
+    // Check if form is disabled during submission
+    final bool isFormDisabled = _isSubmitting;
 
     return Theme(
       data: Theme.of(context).copyWith(
@@ -457,18 +470,17 @@ class _DynamicFormState extends State<DynamicForm> {
                     ),
                   ),
 
-                // Show either shimmer placeholders or actual form fields
+                // Show shimmer placeholders only when loading, not when submitting
                 if (widget.isLoading)
                 // Show shimmer placeholders for loading state
                   ...widget.formFields.map((field) =>
                       FormFieldShimmer.buildShimmerField(field, context)
                   )
                 else
-                // Show actual form fields
+                // Show actual form fields - they'll be disabled during submission
                   ...widget.formFields.map((field) => FormWidgets.buildFormField(
                     field.copyWith(
-                      // Only disable during submission, not during loading
-                      // This is because we now show shimmer instead of disabled fields during loading
+                      // Disable fields during submission (not during loading)
                       disabled: field.disabled || _isSubmitting,
                     ),
                     _controller.controllers,
@@ -487,7 +499,7 @@ class _DynamicFormState extends State<DynamicForm> {
                       if (widget.showResetButton)
                         Expanded(
                           child: widget.isLoading
-                          // Shimmer for reset button during loading
+                          // Shimmer for reset button during loading only
                               ? FormFieldShimmer.buildShimmerField(
                               CustomFormField(
                                 id: 'reset-button-shimmer',
@@ -496,7 +508,7 @@ class _DynamicFormState extends State<DynamicForm> {
                               ),
                               context
                           )
-                          // Regular reset button
+                          // Regular reset button (disabled during submission)
                               : InkWell(
                             onTap: isFormDisabled ? null : () async {
                               if (await _confirmReset()) {
@@ -530,7 +542,7 @@ class _DynamicFormState extends State<DynamicForm> {
                       if(widget.showResetButton) SizedBox(width: 16),
                       Expanded(
                         child: widget.isLoading
-                        // Shimmer for submit button during loading
+                        // Shimmer for submit button during loading only
                             ? FormFieldShimmer.buildShimmerField(
                             CustomFormField(
                               id: 'submit-button-shimmer',
@@ -539,7 +551,7 @@ class _DynamicFormState extends State<DynamicForm> {
                             ),
                             context
                         )
-                        // Regular submit button
+                        // Regular submit button (with loading indicator during submission)
                             : InkWell(
                           onTap: isFormDisabled ? null : _submitForm,
                           radius: formTheme.borderRadius,
@@ -562,7 +574,7 @@ class _DynamicFormState extends State<DynamicForm> {
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.black38,
+                                  Colors.white,
                                 ),
                               ),
                             )

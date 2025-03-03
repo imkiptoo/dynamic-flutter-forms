@@ -21,6 +21,7 @@ class FormStyles {
     CustomFormState? formState,
     Widget? suffixIcon,
     bool multiLine = false,
+    FloatingLabelBehavior floatingLabelBehavior = FloatingLabelBehavior.auto,
   }) {
     final theme = DynamicFormTheme.of(context);
 
@@ -60,6 +61,7 @@ class FormStyles {
         horizontal: 12,
         vertical: multiLine ? 12 : 8,
       ),
+      floatingLabelBehavior: floatingLabelBehavior,
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: errorText != null ? theme.errorColor.withOpacity(0.1) : fillColor,
@@ -161,5 +163,33 @@ class FormStyles {
 
     // Default border color is gray
     return theme.disabledColor;
+  }
+
+  /// Gets the toggle color for a boolean field based on its state.
+  static Color getToggleColor(BuildContext context, String fieldId, CustomFormState formState, bool isOn) {
+    final theme = DynamicFormTheme.of(context);
+    final field = formState.fields[fieldId];
+
+    if (field == null) {
+      return isOn ? theme.modifiedColor : theme.disabledColor;
+    }
+
+    // Error state
+    if (!field.valid) {
+      return theme.errorColor;
+    }
+
+    // Modified state (not yet submitted)
+    if (field.isModified && !formState.isSubmitted) {
+      return theme.modifiedColor;
+    }
+
+    // Successfully submitted state
+    if (formState.isSubmitted) {
+      return theme.validColor;
+    }
+
+    // Default state based on toggle position
+    return isOn ? theme.modifiedColor : theme.disabledColor;
   }
 }

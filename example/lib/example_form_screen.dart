@@ -30,6 +30,14 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
       required: false,
     ),
     CustomFormField(
+      id: 'pm_notifications',
+      label: 'PM Notifications',
+      type: FieldType.boolean,
+      placeholder: '',
+      required: true,
+      initialValue: false,
+    ),
+    /*CustomFormField(
       id: 'email',
       label: 'Email',
       type: FieldType.email,
@@ -102,10 +110,11 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
       id: 'spacer-1',
       label: '',
       type: FieldType.spacer,
-    ),
+    ),*/
   ];
 
-  bool _isLoading = false;
+  bool _isLoading = false; // For data loading with shimmer effect
+  bool _isSubmitting = false; // For form submission without shimmer
   late DynamicFormController _formController;
 
   @override
@@ -122,7 +131,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
 
   Future<void> _loadInitialData() async {
     setState(() {
-      _isLoading = true;
+      _isLoading = true; // Show shimmer during initial data loading
     });
 
     try {
@@ -144,7 +153,6 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
 
       _formController.controllers['type_id']?.text = '1';
       _formController.updateFieldState('type_id', '1');
-
     } catch (e) {
       debugPrint('Error loading data: $e');
 
@@ -159,7 +167,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isLoading = false; // Hide shimmer after data is loaded
         });
       }
     }
@@ -175,19 +183,29 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
           // Refresh button
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _isLoading ? null : () {
+            onPressed: (_isLoading || _isSubmitting) ? null : () {
               _loadInitialData();
             },
           ),
           // Toggle loading state button (for demo)
           IconButton(
             icon: Icon(_isLoading ? Icons.hourglass_full : Icons.hourglass_empty),
-            onPressed: () {
+            onPressed: _isSubmitting ? null : () {
               setState(() {
                 _isLoading = !_isLoading;
               });
             },
             tooltip: 'Toggle Loading State',
+          ),
+          // New toggle submission state button (for demo)
+          IconButton(
+            icon: Icon(_isSubmitting ? Icons.send : Icons.send_outlined),
+            onPressed: _isLoading ? null : () {
+              setState(() {
+                _isSubmitting = !_isSubmitting;
+              });
+            },
+            tooltip: 'Toggle Submission State',
           ),
         ],
       ),
@@ -199,21 +217,22 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
         showResetButton: false,
         submitButtonText: 'Submit Form',
         resetButtonText: 'Clear Form',
-        isLoading: _isLoading, // Pass the loading state
+        isLoading: _isLoading, // Pass the loading state for shimmer effect
+        // Note: _isSubmitting is handled internally by _handleSubmit
       ),
     );
   }
 
   Future<void> _handleSubmit(Map<String, dynamic> formData) async {
     setState(() {
-      _isLoading = true; // Show loading during submission
+      _isSubmitting = true; // Disable form during submission (no shimmer)
     });
 
     // Simulate API call
     await Future.delayed(const Duration(seconds: 2));
 
     setState(() {
-      _isLoading = false;
+      _isSubmitting = false; // Re-enable form after submission
     });
 
     debugPrint('Form data: $formData');
