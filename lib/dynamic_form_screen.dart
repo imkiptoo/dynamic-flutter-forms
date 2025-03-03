@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dynamic_forms/form_state.dart';
 import 'form_field.dart';
-import 'form_state.dart';
 import 'form_widgets.dart';
 
 class DynamicFormScreen extends StatefulWidget {

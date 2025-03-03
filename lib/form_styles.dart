@@ -28,7 +28,7 @@ class FormStyles {
         ),
       ),
       /*constraints: multiLine! ? BoxConstraints(maxHeight: 40) : null,*/
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: errorText != null ? Colors.red.shade50 : fillColor,
