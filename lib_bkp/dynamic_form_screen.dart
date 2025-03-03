@@ -1,7 +1,8 @@
+/*
 import 'package:flutter/material.dart';
-import 'package:dynamic_forms/form_state.dart';
+import 'package:dynamic_flutter_forms/form_state.dart';
 import 'form_field.dart';
-import 'form_widgets.dart';
+import '../lib/form_widgets.dart';
 
 class DynamicFormScreen extends StatefulWidget {
   @override
@@ -382,4 +383,4 @@ class _DynamicFormScreenState extends State<DynamicFormScreen> {
       ),
     ) ?? false;
   }
-}
+}*/

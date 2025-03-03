@@ -1,3 +1,4 @@
+/*
 import 'package:flutter/material.dart';
 
 class Validator {
@@ -71,4 +72,4 @@ class CustomFormField {
     this.multiline = false,
     this.rows = 1,
   });
-}
+}*/

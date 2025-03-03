@@ -1,7 +1,8 @@
+/*
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'form_field.dart';
+import '../lib_bkp/form_field.dart';
 import 'form_state.dart';
 import 'form_styles.dart';
 
@@ -355,7 +356,8 @@ class FormWidgets {
       ),
     );
 
-    /*return SwitchListTile(
+    */
+/*return SwitchListTile(
       title: Text(field.label),
       value: currentValue,
       contentPadding: EdgeInsets.only(right: 8, left: 11),
@@ -376,7 +378,8 @@ class FormWidgets {
             },
       activeColor: Theme.of(context).primaryColor,
       inactiveThumbColor: Colors.grey,
-    );*/
+    );*//*
+
   }
 
   static TextInputType _getKeyboardType(FieldType type) {
@@ -420,3 +423,4 @@ class FormWidgets {
     return field.valid ? Colors.green : Colors.red;
   }
 }
+*/

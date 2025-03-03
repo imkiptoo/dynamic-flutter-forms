@@ -1,3 +1,4 @@
+/*
 class CustomFormFieldState {
   String value;
   bool initial;
@@ -24,4 +25,4 @@ class CustomFormState {
   bool get isValid => fields.values.every((field) => field.valid);
 
   bool get hasModifications => fields.values.any((field) => field.isModified);
-}
+}*/

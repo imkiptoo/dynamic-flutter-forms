@@ -25,8 +25,8 @@ class FormWidgets {
       BuildContext context,
       List<CustomFormField> formFields,
       ) {
-    return Padding(
-      padding: FormStyles.of(context).fieldPadding,
+    return Container(
+      //padding: FormStyles.of(context).fieldPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -1,3 +1,4 @@
+/*
 import 'package:flutter/material.dart';
 
 class FormStyles {
@@ -27,7 +28,9 @@ class FormStyles {
           color: borderColor ?? Colors.grey,
         ),
       ),
-      /*constraints: multiLine! ? BoxConstraints(maxHeight: 40) : null,*/
+      */
+/*constraints: multiLine! ? BoxConstraints(maxHeight: 40) : null,*//*
+
       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       suffixIcon: suffixIcon,
       filled: true,
@@ -59,4 +62,4 @@ class FormStyles {
       fontWeight: FontWeight.bold,
     );
   }
-}
+}*/

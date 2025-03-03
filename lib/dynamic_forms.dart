@@ -2,7 +2,7 @@
 ///
 /// This library provides a set of widgets and utilities to create dynamic forms
 /// with various field types, validations, and customization options.
-library dynamic_forms;
+library dynamic_flutter_forms;
 
 // Models
 export 'src/models/form_field.dart';
