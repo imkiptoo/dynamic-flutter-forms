@@ -491,8 +491,8 @@ class _DynamicFormState extends State<DynamicForm> {
                               ? FormFieldShimmer.buildShimmerField(
                               CustomFormField(
                                 id: 'reset-button-shimmer',
-                                label: '',
-                                type: FieldType.text,
+                                label: 'Reset Form',
+                                type: FieldType.button,
                               ),
                               context
                           )
@@ -534,8 +534,8 @@ class _DynamicFormState extends State<DynamicForm> {
                             ? FormFieldShimmer.buildShimmerField(
                             CustomFormField(
                               id: 'submit-button-shimmer',
-                              label: '',
-                              type: FieldType.text,
+                              label: 'Submit Form',
+                              type: FieldType.button,
                             ),
                             context
                         )

@@ -85,6 +85,9 @@ enum FieldType {
 
   /// Spacer or section divider.
   spacer,
+
+  /// Button.
+  button,
 }
 
 /// Defines a custom form field with various properties and configurations.

@@ -16,7 +16,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
       label: 'ID',
       type: FieldType.text,
       placeholder: 'Select ID',
-      initialValue: '',
+      initialValue: '245234',
       required: true,
       disabled: true,
       readonly: true,
@@ -58,7 +58,51 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
         {'id': '2', 'name': 'User'},
       ],
     ),
-    // More fields...
+    CustomFormField(
+      id: 'comments',
+      label: 'Comments',
+      type: FieldType.textarea,
+      placeholder: 'Enter Comments',
+      required: false,
+      multiline: true,
+      rows: 3,
+    ),
+    CustomFormField(
+      id: 'date_of_birth',
+      label: 'Date of Birth',
+      type: FieldType.date,
+      placeholder: 'Enter Date of Birth',
+      required: true,
+      enableMask: true,
+      format: 'd/M/yyyy',
+    ),
+    CustomFormField(
+      id: 'date_reported',
+      label: 'Date & Time Reported',
+      type: FieldType.datetime,
+      placeholder: 'Enter Date & Time Reported',
+      required: true,
+      enableMask: true,
+      format: 'd MMM yyyy hh:mm a',
+    ),
+    CustomFormField(
+      id: 'roles',
+      label: 'Roles',
+      type: FieldType.multiselect,
+      placeholder: 'Select Roles',
+      required: true,
+      options: [
+        {'id': '1', 'name': 'Admin'},
+        {'id': '2', 'name': 'User'},
+        {'id': '3', 'name': 'Manager'},
+        {'id': '4', 'name': 'Viewer'},
+      ],
+    ),
+    CustomFormField(
+      id: 'spacer-1',
+      label: '',
+      type: FieldType.spacer,
+    ),
   ];
 
   bool _isLoading = false;

@@ -16,6 +16,7 @@ class FormFieldShimmer {
 
     switch (field.type) {
       case FieldType.select:
+      case FieldType.multiselect:
         return buildSelectFieldShimmer(field, context, baseColor, highlightColor);
       case FieldType.textarea:
         return buildTextAreaFieldShimmer(field, context, baseColor, highlightColor);
@@ -26,8 +27,8 @@ class FormFieldShimmer {
         return buildBooleanFieldShimmer(field, context, baseColor, highlightColor);
       case FieldType.spacer:
         return buildSpacerFieldShimmer(field, context, baseColor, highlightColor);
-      case FieldType.multiselect:
-        return buildMultiSelectFieldShimmer(field, context, baseColor, highlightColor);
+      case FieldType.button:
+        return buildButtonFieldShimmer(field, context, baseColor, highlightColor);
       default:
         return buildTextFieldShimmer(field, context, baseColor, highlightColor);
     }
@@ -80,6 +81,20 @@ class FormFieldShimmer {
                       borderRadius: BorderRadius.circular(formTheme.borderRadius),
                       border: Border.all(color: Colors.black12),
                     ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: field.label.length * 8.0,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withAlpha(24),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        Expanded(child: SizedBox()),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -124,44 +139,39 @@ class FormFieldShimmer {
                 : SizedBox(),
           ),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Select field shimmer
-                ShimmerBuilder(
-                  baseColor: baseColor,
-                  highlightColor: highlightColor,
-                  child: Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(formTheme.borderRadius),
-                      border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(child: SizedBox()),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[400],
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.arrow_drop_down,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+            child: ShimmerBuilder(
+              baseColor: baseColor,
+              highlightColor: highlightColor,
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(formTheme.borderRadius),
+                  border: Border.all(color: Colors.black12),
                 ),
-              ],
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: field.placeholder.length * 8.0,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(24),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    Expanded(child: SizedBox()),
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(16),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -190,7 +200,6 @@ class FormFieldShimmer {
               Container(
                 width: 16,
                 alignment: Alignment.center,
-                padding: EdgeInsets.only(top: 16),
                 child: field.required
                     ? ShimmerBuilder(
                   baseColor: baseColor,
@@ -200,44 +209,39 @@ class FormFieldShimmer {
                     height: 8,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      shape: BoxShape.circle,
+                      shape:  BoxShape.circle,
+                      border: Border.all(color: Colors.black12),
                     ),
                   ),
                 )
                     : SizedBox(),
               ),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Label shimmer
-                    ShimmerBuilder(
-                      baseColor: baseColor,
-                      highlightColor: highlightColor,
-                      child: Container(
-                        width: field.label.length * 8.0,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
+                child: ShimmerBuilder(
+                  baseColor: baseColor,
+                  highlightColor: highlightColor,
+                  child: Container(
+                    height: height + 18, // Add padding
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(formTheme.borderRadius),
+                      border: Border.all(color: Colors.black12),
                     ),
-                    SizedBox(height: 8),
-                    // Textarea field shimmer
-                    ShimmerBuilder(
-                      baseColor: baseColor,
-                      highlightColor: highlightColor,
-                      child: Container(
-                        height: height + 24, // Add padding
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(formTheme.borderRadius),
-                          border: Border.all(color: Colors.grey[300]!),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    child: // Label shimmer inside the container
+                    Row(
+                      children: [
+                        Container(
+                          width: field.label.length * 8.0,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withAlpha(24),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -258,87 +262,64 @@ class FormFieldShimmer {
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 16,
-                alignment: Alignment.center,
-                padding: EdgeInsets.only(top: 16),
-                child: field.required
-                    ? ShimmerBuilder(
-                  baseColor: baseColor,
-                  highlightColor: highlightColor,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                )
-                    : SizedBox(),
+          Container(
+            width: 16,
+            alignment: Alignment.center,
+            child: field.required
+                ? ShimmerBuilder(
+              baseColor: baseColor,
+              highlightColor: highlightColor,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape:  BoxShape.circle,
+                  border: Border.all(color: Colors.black12),
+                ),
               ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            )
+                : SizedBox(),
+          ),
+          Expanded(
+            child: ShimmerBuilder(
+              baseColor: baseColor,
+              highlightColor: highlightColor,
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(formTheme.borderRadius),
+                  border: Border.all(color: Colors.black12),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
                   children: [
-                    // Label shimmer
-                    ShimmerBuilder(
-                      baseColor: baseColor,
-                      highlightColor: highlightColor,
-                      child: Container(
-                        width: field.label.length * 8.0,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+                    // Label shimmer inside the container
+                    Container(
+                      width: field.label.length * 8.0,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(24),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    SizedBox(height: 8),
-                    // Date field shimmer
-                    ShimmerBuilder(
-                      baseColor: baseColor,
-                      highlightColor: highlightColor,
-                      child: Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(formTheme.borderRadius),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(child: SizedBox()),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Container(
-                                width: 24,
-                                height: 24,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[400],
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.calendar_today,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                    Expanded(child: SizedBox()),
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha(16),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -387,7 +368,7 @@ class FormFieldShimmer {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(formTheme.borderRadius),
-                  border: Border.all(color: Colors.grey[300]!),
+                  border: Border.all(color: Colors.black12),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 child: Row(
@@ -398,7 +379,7 @@ class FormFieldShimmer {
                       width: field.label.length * 8.0,
                       height: 16,
                       decoration: BoxDecoration(
-                        color: Colors.black12,
+                        color: Colors.black.withAlpha(24),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
@@ -407,8 +388,8 @@ class FormFieldShimmer {
                       width: 48,
                       height: 24,
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[400]!),
-                        borderRadius: BorderRadius.circular(50),
+                        color: Colors.black.withAlpha(16),
+                        borderRadius: BorderRadius.circular(24),
                       ),
                     ),
                   ],
@@ -429,7 +410,7 @@ class FormFieldShimmer {
       Color highlightColor,
       ) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      padding: EdgeInsets.only(left: 16, top: 8, bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.start,
@@ -465,8 +446,8 @@ class FormFieldShimmer {
     );
   }
 
-  /// Creates a shimmer placeholder for a multiselect field.
-  static Widget buildMultiSelectFieldShimmer(
+  /// Creates a shimmer placeholder for a text field.
+  static Widget buildButtonFieldShimmer(
       CustomFormField field,
       BuildContext context,
       Color baseColor,
@@ -474,109 +455,40 @@ class FormFieldShimmer {
       ) {
     final formTheme = DynamicFormTheme.of(context);
 
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 16,
-                alignment: Alignment.center,
-                padding: EdgeInsets.only(top: 16),
-                child: field.required
-                    ? ShimmerBuilder(
-                  baseColor: baseColor,
-                  highlightColor: highlightColor,
-                  child: Container(
-                    width: 8,
-                    height: 8,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Expanded(
+          child: ShimmerBuilder(
+            baseColor: baseColor,
+            highlightColor: highlightColor,
+            child: Container(
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(formTheme.borderRadius),
+                border: Border.all(color: Colors.black12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: field.label.length * 8.0,
+                    height: 16,
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
+                      color: Colors.black.withAlpha(24),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   ),
-                )
-                    : SizedBox(),
+                ],
               ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Label shimmer
-                    ShimmerBuilder(
-                      baseColor: baseColor,
-                      highlightColor: highlightColor,
-                      child: Container(
-                        width: field.label.length * 8.0,
-                        height: 16,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    // Multiselect container shimmer
-                    ShimmerBuilder(
-                      baseColor: baseColor,
-                      highlightColor: highlightColor,
-                      child: Container(
-                        height: 80, // Taller for multiselect field
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(formTheme.borderRadius),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        padding: const EdgeInsets.all(8.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Chip-like items shimmer
-                            Row(
-                              children: [
-                                Container(
-                                  width: 80,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[400],
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Container(
-                                  width: 60,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[400],
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            SizedBox(height: 8),
-                            // Add button shimmer
-                            Container(
-                              width: 120,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[400],
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
