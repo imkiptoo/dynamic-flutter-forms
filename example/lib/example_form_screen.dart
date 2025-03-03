@@ -10,7 +10,8 @@ class ExampleFormScreen extends StatefulWidget {
 }
 
 class _ExampleFormScreenState extends State<ExampleFormScreen> {
-  final List<CustomFormField> _formFields = [
+  // Use const for static form field definitions to improve widget rebuilding efficiency
+  static const List<CustomFormField> _formFields = [
     CustomFormField(
       id: 'id',
       label: 'ID',
@@ -110,6 +111,10 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
   bool _isSubmitting = false; // For form submission without shimmer
   late DynamicFormController _formController;
 
+  // Use debounce for loading operations to prevent rapidly toggling the loading state
+  DateTime _lastLoadingToggle = DateTime.now();
+  static const _debounceThreshold = Duration(milliseconds: 300);
+
   @override
   void initState() {
     super.initState();
@@ -123,29 +128,26 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
   }
 
   Future<void> _loadInitialData() async {
-    setState(() {
-      _isLoading = true; // Show shimmer during initial data loading
-    });
+    // Only update loading state if not already loading
+    if (!_isLoading) {
+      setState(() {
+        _isLoading = true; // Show shimmer during initial data loading
+      });
+    }
 
     try {
       // Simulate API call to load data
       await Future.delayed(const Duration(seconds: 3));
 
-      // Update form with loaded data
-      _formController.controllers['id']?.text = '12345';
-      _formController.updateFieldState('id', '12345');
-
-      _formController.controllers['name']?.text = 'John Doe';
-      _formController.updateFieldState('name', 'John Doe');
-
-      _formController.controllers['email']?.text = 'john.doe@example.com';
-      _formController.updateFieldState('email', 'john.doe@example.com');
-
-      _formController.controllers['pm_notifications']?.text = 'true';
-      _formController.updateFieldState('pm_notifications', 'true');
-
-      _formController.controllers['type_id']?.text = '1';
-      _formController.updateFieldState('type_id', '1');
+      // Batch all form updates instead of updating each field individually
+      // to trigger fewer rebuilds
+      _batchUpdateFormFields({
+        'id': '12345',
+        'name': 'John Doe',
+        'email': 'john.doe@example.com',
+        'pm_notifications': 'true',
+        'type_id': '1',
+      });
     } catch (e) {
       debugPrint('Error loading data: $e');
 
@@ -166,6 +168,17 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
     }
   }
 
+  // Helper to update multiple form fields in a single batch
+  void _batchUpdateFormFields(Map<String, String> updates) {
+    for (final entry in updates.entries) {
+      final controller = _formController.controllers[entry.key];
+      if (controller != null) {
+        controller.text = entry.value;
+        _formController.updateFieldState(entry.key, entry.value);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -180,23 +193,33 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
               _loadInitialData();
             },
           ),
-          // Toggle loading state button (for demo)
+          // Toggle loading state button (for demo) with debounce
           IconButton(
             icon: Icon(_isLoading ? Icons.hourglass_full : Icons.hourglass_empty),
             onPressed: _isSubmitting ? null : () {
-              setState(() {
-                _isLoading = !_isLoading;
-              });
+              // Prevent rapid toggling of loading state
+              final now = DateTime.now();
+              if (now.difference(_lastLoadingToggle) > _debounceThreshold) {
+                _lastLoadingToggle = now;
+                setState(() {
+                  _isLoading = !_isLoading;
+                });
+              }
             },
             tooltip: 'Toggle Loading State',
           ),
-          // New toggle submission state button (for demo)
+          // New toggle submission state button (for demo) with debounce
           IconButton(
             icon: Icon(_isSubmitting ? Icons.send : Icons.send_outlined),
             onPressed: _isLoading ? null : () {
-              setState(() {
-                _isSubmitting = !_isSubmitting;
-              });
+              // Prevent rapid toggling of submission state
+              final now = DateTime.now();
+              if (now.difference(_lastLoadingToggle) > _debounceThreshold) {
+                _lastLoadingToggle = now;
+                setState(() {
+                  _isSubmitting = !_isSubmitting;
+                });
+              }
             },
             tooltip: 'Toggle Submission State',
           ),
@@ -211,7 +234,8 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
         submitButtonText: 'Submit Form',
         resetButtonText: 'Clear Form',
         isLoading: _isLoading, // Pass the loading state for shimmer effect
-        // Note: _isSubmitting is handled internally by _handleSubmit
+        controller: _formController, // Pass the controller for better state management
+        useSlivers: false, // Temporarily disabled sliver support until all issues are fixed
       ),
     );
   }
@@ -254,6 +278,11 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
   @override
   void dispose() {
     _formController.dispose();
+
+    // Clean up cached resources
+    FormValidator.clearValidatorCache();
+    FormStyles.clearCaches();
+
     super.dispose();
   }
 }

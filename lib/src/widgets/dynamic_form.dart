@@ -4,6 +4,7 @@ import '../models/form_field.dart';
 import '../models/form_state.dart';
 import '../theme/form_theme.dart';
 import '../utils/form_styles.dart';
+import '../utils/form_validators.dart';
 import 'form_widgets.dart';
 
 /// A callback for form submission with the form data.
@@ -22,8 +23,21 @@ class DynamicFormController {
   final Map<String, FocusNode> _focusNodes = {};
   final _formState = CustomFormState();
 
+  // ValueNotifiers for reactive UI updates
+  final Map<String, ValueNotifier<CustomFormFieldState>> _fieldStateNotifiers = {};
+  final ValueNotifier<bool> _isProcessingNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isValidNotifier = ValueNotifier<bool>(true);
+  final ValueNotifier<String?> _globalErrorNotifier = ValueNotifier<String?>(null);
+
   final List<CustomFormField> _formFields;
   final OnFormValidate? _onValidate;
+
+  // Track visible fields for more efficient resource management
+  final Set<String> _visibleFieldIds = {};
+
+  // Time threshold for cleanup of unused resources
+  static const Duration _cleanupThreshold = Duration(minutes: 1);
+  DateTime _lastCleanupTime = DateTime.now();
 
   /// Whether the form is in a loading state (showing shimmer)
   bool isLoading = false;
@@ -40,11 +54,12 @@ class DynamicFormController {
     _initializeForm();
   }
 
+  /// Initializes the form with controllers, focus nodes, and state notifiers
   void _initializeForm() {
     for (var field in _formFields) {
       String initialValue = field.initialValue?.toString() ?? '';
-      _controllers[field.id] = TextEditingController(text: initialValue);
-      _focusNodes[field.id] = FocusNode();
+
+      // Create field state
       _formState.fields[field.id] = CustomFormFieldState(
         value: initialValue,
         initialValue: initialValue,
@@ -52,22 +67,115 @@ class DynamicFormController {
         valid: true,
         submitted: false,
       );
+
+      // Create notifier for this field's state
+      _fieldStateNotifiers[field.id] = ValueNotifier<CustomFormFieldState>(
+          _formState.fields[field.id]!
+      );
+    }
+
+    // Initialize global state notifiers
+    _globalErrorNotifier.value = null;
+    _isValidNotifier.value = true;
+  }
+
+  /// Lazy-loads controller for a field when needed
+  /// Lazy-loads controller for a field when needed
+  TextEditingController _getOrCreateController(String fieldId) {
+    if (!_controllers.containsKey(fieldId)) {
+      String initialValue = _formState.fields[fieldId]?.value ?? '';
+      _controllers[fieldId] = TextEditingController(text: initialValue);
+    }
+    return _controllers[fieldId]!;
+  }
+
+  /// Lazy-loads focus node for a field when needed
+  FocusNode _getOrCreateFocusNode(String fieldId) {
+    if (!_focusNodes.containsKey(fieldId)) {
+      _focusNodes[fieldId] = FocusNode();
+    }
+    return _focusNodes[fieldId]!;
+  }
+
+  /// Marks a field as visible to manage resources
+  void markFieldVisible(String fieldId) {
+    _visibleFieldIds.add(fieldId);
+    // If field becomes visible, ensure it has controller and focusNode
+    // We need to initialize both to avoid potential errors
+    String initialValue = _formState.fields[fieldId]?.value ?? '';
+
+    if (!_controllers.containsKey(fieldId)) {
+      _controllers[fieldId] = TextEditingController(text: initialValue);
+    }
+
+    if (!_focusNodes.containsKey(fieldId)) {
+      _focusNodes[fieldId] = FocusNode();
+    }
+  }
+
+  /// Marks a field as invisible to manage resources
+  void markFieldInvisible(String fieldId) {
+    _visibleFieldIds.remove(fieldId);
+    // Consider cleanup if many fields are invisible
+    _maybeCleanupResources();
+  }
+
+  /// Cleanup unused resources to reduce memory usage
+  void _maybeCleanupResources() {
+    final now = DateTime.now();
+    if (now.difference(_lastCleanupTime) < _cleanupThreshold) return;
+
+    _lastCleanupTime = now;
+
+    // Find controllers/focusNodes for fields that aren't visible
+    final unusedControllerIds = _controllers.keys
+        .where((id) => !_visibleFieldIds.contains(id))
+        .toList();
+
+    for (final id in unusedControllerIds) {
+      _controllers[id]?.dispose();
+      _controllers.remove(id);
+    }
+
+    final unusedFocusNodeIds = _focusNodes.keys
+        .where((id) => !_visibleFieldIds.contains(id))
+        .toList();
+
+    for (final id in unusedFocusNodeIds) {
+      _focusNodes[id]?.dispose();
+      _focusNodes.remove(id);
+    }
+
+    // Also clear validator cache for invisible fields
+    for (final id in unusedControllerIds) {
+      FormValidator.clearValidatorCache(id);
     }
   }
 
   /// Sets the loading state of the form (showing shimmer)
   void setLoading(bool loading) {
     isLoading = loading;
+    _isProcessingNotifier.value = loading || isSubmitting;
   }
 
   /// Sets the submitting state of the form (disabled without shimmer)
   void setSubmitting(bool submitting) {
     isSubmitting = submitting;
     _formState.isSubmitting = submitting;
+    _isProcessingNotifier.value = isLoading || submitting;
   }
 
   /// Gets whether the form is currently being processed (either loading or submitting)
   bool get isProcessing => isLoading || isSubmitting || _formState.isSubmitting;
+
+  /// Gets a notifier for the processing state
+  ValueNotifier<bool> get isProcessingNotifier => _isProcessingNotifier;
+
+  /// Gets a notifier for the validity state
+  ValueNotifier<bool> get isValidNotifier => _isValidNotifier;
+
+  /// Gets a notifier for the global error
+  ValueNotifier<String?> get globalErrorNotifier => _globalErrorNotifier;
 
   /// Submits the form programmatically.
   Future<bool> submit() async {
@@ -75,6 +183,11 @@ class DynamicFormController {
       for (var fieldId in _formState.fields.keys) {
         final field = _formState.fields[fieldId]!;
         field.submitted = true;
+
+        // Update notifier to reflect the change
+        if (_fieldStateNotifiers.containsKey(fieldId)) {
+          _fieldStateNotifiers[fieldId]!.value = field;
+        }
       }
       return true;
     }
@@ -83,26 +196,46 @@ class DynamicFormController {
 
   /// Resets the form to its initial state.
   void reset() {
+    final initialValues = <String, String>{};
+
     for (var field in _formFields) {
-      final controller = _controllers[field.id];
-      if (controller != null) {
-        controller.text = field.initialValue?.toString() ?? '';
-      }
-      _formState.fields[field.id] = CustomFormFieldState(
-        value: field.initialValue?.toString() ?? '',
-        initial: true,
-        valid: true,
-        submitted: false,
-      );
+      initialValues[field.id] = field.initialValue?.toString() ?? '';
     }
-    _formState.globalError = null;
+
+    _formState.reset(initialValues);
+
+    // Update controllers for visible fields
+    for (var fieldId in _visibleFieldIds) {
+      final value = initialValues[fieldId] ?? '';
+      if (_controllers.containsKey(fieldId)) {
+        _controllers[fieldId]!.text = value;
+      }
+    }
+
+    // Update notifiers
+    for (var fieldId in _fieldStateNotifiers.keys) {
+      if (_formState.fields.containsKey(fieldId)) {
+        _fieldStateNotifiers[fieldId]!.value = _formState.fields[fieldId]!;
+      }
+    }
+
+    _globalErrorNotifier.value = null;
+    _isValidNotifier.value = true;
   }
 
   /// Gets the current form data.
   Map<String, dynamic> get formData {
     final result = <String, dynamic>{};
     for (var entry in _formState.fields.entries) {
-      result[entry.key] = entry.value.value;
+      // Only include fields that are marked for insertion
+      final field = _formFields.firstWhere(
+              (f) => f.id == entry.key,
+          orElse: () => CustomFormField(id: entry.key, label: '', insert: true)
+      );
+
+      if (field.insert) {
+        result[entry.key] = entry.value.value;
+      }
     }
     return result;
   }
@@ -116,6 +249,9 @@ class DynamicFormController {
   /// Gets the focus nodes for the form fields.
   Map<String, FocusNode> get focusNodes => _focusNodes;
 
+  /// Gets state notifiers for fields
+  Map<String, ValueNotifier<CustomFormFieldState>> get fieldStateNotifiers => _fieldStateNotifiers;
+
   /// Gets the form key.
   GlobalKey<FormState> get formKey => _formKey;
 
@@ -128,51 +264,48 @@ class DynamicFormController {
       return _onValidate(field, value);
     }
 
-    if (field.required && (value == null || value.isEmpty)) {
-      return 'This field is required';
-    }
-
-    for (var validator in field.validators) {
-      switch (validator.type) {
-        case 'email':
-          final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
-          if (value != null && !emailRegex.hasMatch(value)) {
-            return validator.message ?? 'Invalid email format';
-          }
-          break;
-        case 'pattern':
-          if (validator.value != null && value != null) {
-            final pattern = RegExp(validator.value!);
-            if (!pattern.hasMatch(value)) {
-              return validator.message ?? 'Invalid format';
-            }
-          }
-          break;
-      }
-    }
-    return null;
+    return FormValidator.validateField(field, value);
   }
 
   /// Updates a field's state.
   void updateFieldState(String fieldId, String value) {
     final field = _formState.fields[fieldId];
     if (field != null) {
-      final customField = _formFields.firstWhere((f) => f.id == fieldId,
-          orElse: () => throw Exception('Field not found: $fieldId'));
+      final customField = _formFields.firstWhere(
+              (f) => f.id == fieldId,
+          orElse: () => throw Exception('Field not found: $fieldId')
+      );
 
-      final error = validateField(customField, value);
+      // Only validate if value changed (optimization)
+      if (field.value != value) {
+        final error = validateField(customField, value);
 
-      // Check if the value is different from the initial value
-      // For boolean fields, convert to lowercase for comparison
-      final initialValue = field.initialValue.toLowerCase();
-      final newValue = value.toLowerCase();
-      final isModified = initialValue != newValue;
+        // Check if the value is different from the initial value
+        final initialValue = field.initialValue.toLowerCase();
+        final newValue = value.toLowerCase();
+        final isModified = initialValue != newValue;
 
-      field.value = value;
-      field.initial = !isModified; // Set initial to false if modified
-      field.submitted = false;
-      field.valid = error == null;
-      field.error = error;
+        // Store previous state to check if an update is needed
+        final oldValid = field.valid;
+        final oldError = field.error;
+
+        // Update field state
+        field.value = value;
+        field.initial = !isModified;
+        field.submitted = false;
+        field.valid = error == null;
+        field.error = error;
+
+        // Only update notifier if something important changed
+        if (oldValid != field.valid || oldError != field.error || isModified) {
+          if (_fieldStateNotifiers.containsKey(fieldId)) {
+            _fieldStateNotifiers[fieldId]!.value = field;
+          }
+        }
+
+        // Check overall form validity
+        _isValidNotifier.value = _formState.isValid;
+      }
     }
   }
 
@@ -184,6 +317,14 @@ class DynamicFormController {
     for (var focusNode in _focusNodes.values) {
       focusNode.dispose();
     }
+    for (var notifier in _fieldStateNotifiers.values) {
+      notifier.dispose();
+    }
+    _isProcessingNotifier.dispose();
+    _isValidNotifier.dispose();
+    _globalErrorNotifier.dispose();
+
+    FormValidator.clearValidatorCache();
   }
 }
 
@@ -222,6 +363,9 @@ class DynamicForm extends StatefulWidget {
   /// Whether the form is in a loading state (displays shimmer).
   final bool isLoading;
 
+  /// Whether to use slivers for better scroll performance
+  final bool useSlivers;
+
   /// Creates a new [DynamicForm] widget.
   ///
   /// [formFields] is the list of form fields to display.
@@ -235,6 +379,7 @@ class DynamicForm extends StatefulWidget {
   /// [showConfirmationDialogs] determines whether to show confirmation dialogs.
   /// [controller] is a controller for the form.
   /// [isLoading] determines whether the form is in a loading state (displays shimmer).
+  /// [useSlivers] determines whether to use SliverList for better performance with long forms.
   const DynamicForm({
     Key? key,
     required this.formFields,
@@ -248,6 +393,7 @@ class DynamicForm extends StatefulWidget {
     this.showConfirmationDialogs = true,
     this.controller,
     this.isLoading = false,
+    this.useSlivers = false,
   }) : super(key: key);
 
   @override
@@ -257,6 +403,9 @@ class DynamicForm extends StatefulWidget {
 class _DynamicFormState extends State<DynamicForm> {
   late DynamicFormController _controller;
   bool _isSubmitting = false;
+
+  // Track visible fields for optimization
+  final Map<int, bool> _visibleFields = {};
 
   @override
   void initState() {
@@ -292,9 +441,8 @@ class _DynamicFormState extends State<DynamicForm> {
   }
 
   void _updateFieldState(String fieldId, dynamic value) {
-    setState(() {
-      _controller.updateFieldState(fieldId, value);
-    });
+    // Don't use setState for every field update
+    _controller.updateFieldState(fieldId, value);
   }
 
   Future<bool> _confirmReset() async {
@@ -305,17 +453,17 @@ class _DynamicFormState extends State<DynamicForm> {
     return await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Reset Form?'),
-        content: Text('Are you sure you want to reset all fields to their initial values?'),
+        title: const Text('Reset Form?'),
+        content: const Text('Are you sure you want to reset all fields to their initial values?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
-            child: Text('Reset'),
+            child: const Text('Reset'),
           ),
         ],
       ),
@@ -329,9 +477,7 @@ class _DynamicFormState extends State<DynamicForm> {
   }
 
   void _resetForm() {
-    setState(() {
-      _controller.reset();
-    });
+    _controller.reset();
 
     if (widget.onReset != null) {
       widget.onReset!();
@@ -341,7 +487,7 @@ class _DynamicFormState extends State<DynamicForm> {
   Future<void> _submitForm() async {
     FocusScope.of(context).unfocus();
 
-    for (var node in _controller._focusNodes.values) {
+    for (var node in _controller.focusNodes.values) {
       if(node.hasFocus) {
         node.unfocus();
       }
@@ -349,23 +495,28 @@ class _DynamicFormState extends State<DynamicForm> {
 
     final formState = _controller.formState;
 
-    // Mark all fields as ready for validation
-    setState(() {
-      for (var fieldId in formState.fields.keys) {
-        final field = formState.fields[fieldId]!;
-        final controller = _controller.controllers[fieldId];
-        if (controller != null) {
-          final customField = widget.formFields.firstWhere((f) => f.id == fieldId);
-          final error = _controller.validateField(customField, controller.text);
-          field.valid = error == null;
-          field.error = error;
-          // Don't mark as submitted yet - we'll do that after successful submission
+    // Validate only fields that need validation (optimization)
+    bool isValid = true;
+    for (var fieldId in formState.fieldsNeedingValidation) {
+      final field = formState.fields[fieldId]!;
+      final controller = _controller.controllers[fieldId];
+      if (controller != null) {
+        final customField = widget.formFields.firstWhere((f) => f.id == fieldId);
+        final error = _controller.validateField(customField, controller.text);
+        field.valid = error == null;
+        field.error = error;
+
+        if (!field.valid) isValid = false;
+
+        // Update field state notifier
+        if (_controller.fieldStateNotifiers.containsKey(fieldId)) {
+          _controller.fieldStateNotifiers[fieldId]!.value = field;
         }
       }
-    });
+    }
 
     // If all fields are valid, proceed
-    if (formState.isValid) {
+    if (isValid) {
       // Show confirmation dialog if needed
       if (widget.showConfirmationDialogs && !await _confirmSubmit()) {
         return;
@@ -385,24 +536,34 @@ class _DynamicFormState extends State<DynamicForm> {
         }
 
         // Mark form as successfully submitted and update all fields
-        setState(() {
-          _isSubmitting = false;
-          formState.isSubmitting = false;
-          formState.isSubmitted = true; // Mark as successfully submitted
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+            formState.isSubmitting = false;
+            formState.isSubmitted = true; // Mark as successfully submitted
 
-          // Now mark all fields as submitted
-          for (var fieldId in formState.fields.keys) {
-            final field = formState.fields[fieldId]!;
-            field.submitted = true;
-          }
-        });
+            // Now mark all fields as submitted
+            for (var fieldId in formState.fields.keys) {
+              final field = formState.fields[fieldId]!;
+              field.submitted = true;
+
+              // Update field state notifier
+              if (_controller.fieldStateNotifiers.containsKey(fieldId)) {
+                _controller.fieldStateNotifiers[fieldId]!.value = field;
+              }
+            }
+          });
+        }
       } catch (e) {
-        setState(() {
-          _isSubmitting = false;
-          formState.isSubmitting = false;
-          formState.isSubmitted = false;
-          formState.globalError = 'Submission failed: ${e.toString()}';
-        });
+        if (mounted) {
+          setState(() {
+            _isSubmitting = false;
+            formState.isSubmitting = false;
+            formState.isSubmitted = false;
+            formState.globalError = 'Submission failed: ${e.toString()}';
+            _controller.globalErrorNotifier.value = formState.globalError;
+          });
+        }
       }
     }
   }
@@ -439,164 +600,358 @@ class _DynamicFormState extends State<DynamicForm> {
     });
   }
 
+  // Visibility changed callback for a field
+  void _onFieldVisibilityChanged(int index, bool isVisible) {
+    _visibleFields[index] = isVisible;
+
+    final fieldId = widget.formFields[index].id;
+    if (isVisible) {
+      _controller.markFieldVisible(fieldId);
+    } else {
+      _controller.markFieldInvisible(fieldId);
+    }
+  }
+
+  // Build a form field with visibility tracking
+  Widget _buildFormField(int index) {
+    final field = widget.formFields[index];
+
+    return VisibilityDetectorWidget(
+      key: ValueKey('field-${field.id}'),
+      onVisibilityChanged: (visible) => _onFieldVisibilityChanged(index, visible),
+      child: FormWidgets.buildFormField(
+        field.copyWith(
+          // Disable fields during submission (not during loading)
+          disabled: field.disabled || _isSubmitting,
+        ),
+        _controller.controllers,
+        _controller.focusNodes,
+        _controller.formState,
+        _updateFieldState,
+        context,
+        widget.formFields,
+        _controller.fieldStateNotifiers,
+      ),
+    );
+  }
+
+  // Build a form field shimmer with visibility tracking
+  Widget _buildFieldShimmer(int index) {
+    return VisibilityDetectorWidget(
+      key: ValueKey('shimmer-${widget.formFields[index].id}'),
+      onVisibilityChanged: (visible) => _onFieldVisibilityChanged(index, visible),
+      child: FormFieldShimmer.buildShimmerField(widget.formFields[index], context),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final formTheme = widget.theme ?? DynamicFormTheme.of(context);
     final formState = _controller.formState;
 
+    // Initialize controllers and focus nodes for all fields upfront
+    // This helps prevent issues with lazy loading during the build phase
+    if (!widget.isLoading) {
+      for (var field in widget.formFields) {
+        _controller.markFieldVisible(field.id);
+      }
+    }
+
     // Check if form is disabled during submission
     final bool isFormDisabled = _isSubmitting;
 
-    return Theme(
+    final Widget formContent = Theme(
       data: Theme.of(context).copyWith(
         extensions: <ThemeExtension<dynamic>>[
           formTheme,
         ],
       ),
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: formTheme.formPadding,
-          child: Form(
-            key: _controller.formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (formState.globalError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(
-                      formState.globalError!,
-                      style: TextStyle(color: formTheme.errorColor),
-                    ),
-                  ),
+      child: widget.useSlivers
+          ? _buildSliverForm(formTheme, formState, isFormDisabled)
+          : _buildStandardForm(formTheme, formState, isFormDisabled),
+    );
 
-                // Show shimmer placeholders only when loading, not when submitting
-                if (widget.isLoading)
-                // Show shimmer placeholders for loading state
-                  ...widget.formFields.map((field) =>
-                      FormFieldShimmer.buildShimmerField(field, context)
-                  )
-                else
-                // Show actual form fields - they'll be disabled during submission
-                  ...widget.formFields.map((field) => FormWidgets.buildFormField(
-                    field.copyWith(
-                      // Disable fields during submission (not during loading)
-                      disabled: field.disabled || _isSubmitting,
-                    ),
-                    _controller.controllers,
-                    _controller.focusNodes,
-                    formState,
-                    _updateFieldState,
-                    context,
-                    widget.formFields,
-                  )),
+    return Form(
+      key: _controller.formKey,
+      child: formContent,
+    );
+  }
 
-                // Buttons section
-                Container(
-                  padding: EdgeInsets.only(left: 16, right: 0, top: 8, bottom: 16),
-                  child: Row(
-                    children: [
-                      if (widget.showResetButton)
-                        Expanded(
-                          child: widget.isLoading
-                          // Shimmer for reset button during loading only
-                              ? FormFieldShimmer.buildShimmerField(
-                              CustomFormField(
-                                id: 'reset-button-shimmer',
-                                label: 'Reset Form',
-                                type: FieldType.button,
-                              ),
-                              context
-                          )
-                          // Regular reset button (disabled during submission)
-                              : InkWell(
-                            onTap: isFormDisabled ? null : () async {
-                              if (await _confirmReset()) {
-                                _resetForm();
-                              }
-                            },
-                            radius: formTheme.borderRadius,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: isFormDisabled ? Colors.black38 : Colors.red.shade700,
-                                  width: 1.25,
-                                ),
-                                borderRadius: BorderRadius.circular(formTheme.borderRadius),
-                                color: isFormDisabled ? Colors.black12 : Colors.red.shade50,
-                              ),
-                              height: 40,
-                              child: Text(
-                                widget.resetButtonText,
-                                style: TextStyle(
-                                  color: isFormDisabled ? Colors.black38 : Colors.red.shade700,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      if(widget.showResetButton) SizedBox(width: 16),
-                      Expanded(
-                        child: widget.isLoading
-                        // Shimmer for submit button during loading only
-                            ? FormFieldShimmer.buildShimmerField(
-                            CustomFormField(
-                              id: 'submit-button-shimmer',
-                              label: 'Submit Form',
-                              type: FieldType.button,
-                            ),
-                            context
-                        )
-                        // Regular submit button (with loading indicator during submission)
-                            : InkWell(
-                          onTap: isFormDisabled ? null : _submitForm,
-                          radius: formTheme.borderRadius,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: isFormDisabled ? Colors.black38 : Colors.green.shade700,
-                                width: 1.25,
-                              ),
-                              borderRadius: BorderRadius.circular(formTheme.borderRadius),
-                              color: isFormDisabled ? Colors.black12 : Colors.green.shade700,
-                            ),
-                            height: 40,
-                            child: _isSubmitting
-                                ? SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                                : Text(
-                              widget.submitButtonText,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+  // Build standard form with a Column layout
+  Widget _buildStandardForm(DynamicFormTheme formTheme, CustomFormState formState, bool isFormDisabled) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: formTheme.formPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Global error message (using ValueListenableBuilder for efficient updates)
+            ValueListenableBuilder<String?>(
+              valueListenable: _controller.globalErrorNotifier,
+              builder: (context, errorMessage, child) {
+                return errorMessage != null
+                    ? Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    errorMessage,
+                    style: TextStyle(color: formTheme.errorColor),
                   ),
-                ),
-              ],
+                )
+                    : const SizedBox.shrink();
+              },
             ),
-          ),
+
+            // Form fields
+            ...List.generate(widget.formFields.length, (index) {
+              // Show shimmer placeholders only when loading, not when submitting
+              if (widget.isLoading) {
+                return _buildFieldShimmer(index);
+              } else {
+                return _buildFormField(index);
+              }
+            }),
+
+            // Buttons section
+            _buildFormButtons(formTheme, isFormDisabled),
+          ],
         ),
       ),
     );
+  }
+
+  // Build sliver-based form for better performance with long forms
+  Widget _buildSliverForm(DynamicFormTheme formTheme, CustomFormState formState, bool isFormDisabled) {
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: formTheme.formPadding,
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              // Global error message
+              ValueListenableBuilder<String?>(
+                valueListenable: _controller.globalErrorNotifier,
+                builder: (context, errorMessage, child) {
+                  return errorMessage != null
+                      ? Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      errorMessage,
+                      style: TextStyle(color: formTheme.errorColor),
+                    ),
+                  )
+                      : const SizedBox.shrink();
+                },
+              ),
+            ]),
+          ),
+        ),
+
+        // Form fields with efficient builder pattern
+        SliverPadding(
+          padding: EdgeInsets.zero,
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                if (widget.isLoading) {
+                  return _buildFieldShimmer(index);
+                } else {
+                  return _buildFormField(index);
+                }
+              },
+              childCount: widget.formFields.length,
+            ),
+          ),
+        ),
+
+        // Buttons section
+        SliverPadding(
+          padding: formTheme.formPadding,
+          sliver: SliverToBoxAdapter(
+            child: _buildFormButtons(formTheme, isFormDisabled),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Button section (shared between form layouts)
+  Widget _buildFormButtons(DynamicFormTheme formTheme, bool isFormDisabled) {
+    return Container(
+      padding: const EdgeInsets.only(left: 16, right: 0, top: 8, bottom: 16),
+      child: Row(
+        children: [
+          if (widget.showResetButton)
+            Expanded(
+              child: widget.isLoading
+              // Shimmer for reset button during loading only
+                  ? FormFieldShimmer.buildShimmerField(
+                  const CustomFormField(
+                    id: 'reset-button-shimmer',
+                    label: 'Reset Form',
+                    type: FieldType.button,
+                  ),
+                  context
+              )
+              // Regular reset button (disabled during submission)
+                  : InkWell(
+                onTap: isFormDisabled ? null : () async {
+                  if (await _confirmReset()) {
+                    _resetForm();
+                  }
+                },
+                radius: formTheme.borderRadius,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isFormDisabled ? Colors.black38 : Colors.red.shade700,
+                      width: 1.25,
+                    ),
+                    borderRadius: BorderRadius.circular(formTheme.borderRadius),
+                    color: isFormDisabled ? Colors.black12 : Colors.red.shade50,
+                  ),
+                  height: 40,
+                  child: Text(
+                    widget.resetButtonText,
+                    style: TextStyle(
+                      color: isFormDisabled ? Colors.black38 : Colors.red.shade700,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if(widget.showResetButton) const SizedBox(width: 16),
+          Expanded(
+            child: widget.isLoading
+            // Shimmer for submit button during loading only
+                ? FormFieldShimmer.buildShimmerField(
+                const CustomFormField(
+                  id: 'submit-button-shimmer',
+                  label: 'Submit Form',
+                  type: FieldType.button,
+                ),
+                context
+            )
+            // Regular submit button (with loading indicator during submission)
+                : InkWell(
+              onTap: isFormDisabled ? null : _submitForm,
+              radius: formTheme.borderRadius,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: isFormDisabled ? Colors.black38 : Colors.green.shade700,
+                    width: 1.25,
+                  ),
+                  borderRadius: BorderRadius.circular(formTheme.borderRadius),
+                  color: isFormDisabled ? Colors.black12 : Colors.green.shade700,
+                ),
+                height: 40,
+                child: _isSubmitting
+                    ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Colors.white,
+                    ),
+                  ),
+                )
+                    : Text(
+                  widget.submitButtonText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Simplified visibility detector for form fields
+class VisibilityDetectorWidget extends StatefulWidget {
+  final Widget child;
+  final Function(bool) onVisibilityChanged;
+
+  const VisibilityDetectorWidget({
+    required Key key,
+    required this.child,
+    required this.onVisibilityChanged,
+  }) : super(key: key);
+
+  @override
+  _VisibilityDetectorWidgetState createState() => _VisibilityDetectorWidgetState();
+}
+
+class _VisibilityDetectorWidgetState extends State<VisibilityDetectorWidget> {
+  bool _isVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Consider widgets visible by default until scroll events indicate otherwise
+    _isVisible = true;
+    widget.onVisibilityChanged(true);
+  }
+
+  @override
+  void dispose() {
+    widget.onVisibilityChanged(false);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _checkVisibility());
+        return false;
+      },
+      child: widget.child,
+    );
+  }
+
+  void _checkVisibility() {
+    final RenderObject? renderObject = context.findRenderObject();
+    if (renderObject == null || !renderObject.attached) return;
+
+    try {
+      final RenderBox box = renderObject as RenderBox;
+      final Offset topLeft = box.localToGlobal(Offset.zero);
+      final Size size = box.size;
+
+      // Simple visibility check - if widget is on screen
+      final MediaQueryData mediaQuery = MediaQuery.of(context);
+      final screenSize = mediaQuery.size;
+      final screenInsets = mediaQuery.padding;
+
+      final bool isVisible =
+          (topLeft.dy + size.height > 0) &&
+              (topLeft.dy < screenSize.height - screenInsets.bottom) &&
+              (topLeft.dx + size.width > 0) &&
+              (topLeft.dx < screenSize.width - screenInsets.right);
+
+      if (_isVisible != isVisible) {
+        _isVisible = isVisible;
+        widget.onVisibilityChanged(isVisible);
+      }
+    } catch (e) {
+      // If error occurs, assume visible
+      if (!_isVisible) {
+        _isVisible = true;
+        widget.onVisibilityChanged(true);
+      }
+    }
   }
 }

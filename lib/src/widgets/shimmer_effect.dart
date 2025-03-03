@@ -38,7 +38,6 @@ class Shimmer extends StatefulWidget {
 
   /// Creates a widget that applies the shimmer effect to its child.
   static ShimmerBuilder builder({
-    required BuildContext context,
     required Widget child,
     Color baseColor = const Color(0xFFEBEBF4),
     Color highlightColor = const Color(0xFFF4F4F4),
@@ -87,6 +86,14 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
         _controller.repeat();
       } else {
         _controller.stop();
+      }
+    }
+
+    // Update animation duration if changed
+    if (widget.duration != oldWidget.duration) {
+      _controller.duration = widget.duration;
+      if (widget.enabled) {
+        _controller.repeat();
       }
     }
   }

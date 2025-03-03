@@ -4,6 +4,12 @@ import '../models/form_state.dart';
 
 /// Provides styling utilities for dynamic forms.
 class FormStyles {
+  // Cache for frequently used styles to avoid unnecessary recreations
+  static final Map<String, TextStyle> _textStyleCache = {};
+  static final Map<int, InputDecoration> _decorationCache = {};
+  static final Map<int, ButtonStyle> _buttonStyleCache = {};
+  static final Map<String, Color> _colorCache = {};
+
   /// Creates input decoration for form fields.
   ///
   /// [context] is the build context.
@@ -25,6 +31,48 @@ class FormStyles {
   }) {
     final theme = DynamicFormTheme.of(context);
 
+    // Use decoration cache only when there's no form state to consider
+    // (since state changes would require recreation anyway)
+    if (formState == null || fieldId == null) {
+      final cacheKey = Object.hash(
+          labelText,
+          hintText,
+          suffixIcon?.hashCode,
+          multiLine,
+          floatingLabelBehavior.index,
+          theme.hashCode
+      );
+
+      if (_decorationCache.containsKey(cacheKey)) {
+        return _decorationCache[cacheKey]!;
+      }
+
+      final decoration = InputDecoration(
+        labelText: labelText,
+        hintText: hintText,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(theme.borderRadius),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(theme.borderRadius),
+          borderSide: BorderSide(
+            color: theme.disabledColor,
+          ),
+        ),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: multiLine ? 12 : 8,
+        ),
+        floatingLabelBehavior: floatingLabelBehavior,
+        suffixIcon: suffixIcon,
+        filled: false,
+      );
+
+      _decorationCache[cacheKey] = decoration;
+      return decoration;
+    }
+
+    // Continue with state-dependent styling
     Color? fillColor;
     Color borderColor = theme.disabledColor;
     String? errorText;
@@ -74,10 +122,16 @@ class FormStyles {
   /// [context] is the build context.
   static TextStyle requiredFieldStyle(BuildContext context) {
     final theme = DynamicFormTheme.of(context);
-    return TextStyle(
-      color: theme.requiredColor,
-      fontWeight: FontWeight.bold,
-    );
+    final cacheKey = 'required_${theme.requiredColor.value}';
+
+    if (!_textStyleCache.containsKey(cacheKey)) {
+      _textStyleCache[cacheKey] = TextStyle(
+        color: theme.requiredColor,
+        fontWeight: FontWeight.bold,
+      );
+    }
+
+    return _textStyleCache[cacheKey]!;
   }
 
   /// Gets the button style for form buttons.
@@ -85,15 +139,26 @@ class FormStyles {
   /// [context] is the build context.
   static ButtonStyle buttonStyle(BuildContext context) {
     final theme = DynamicFormTheme.of(context);
+    final themeOfContext = Theme.of(context);
 
-    return theme.buttonStyle ?? ElevatedButton.styleFrom(
-      padding: theme.buttonPadding,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(theme.borderRadius),
-      ),
-      backgroundColor: Theme.of(context).primaryColor,
-      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+    final cacheKey = Object.hash(
+        theme.hashCode,
+        themeOfContext.primaryColor.value,
+        themeOfContext.colorScheme.onPrimary.value
     );
+
+    if (!_buttonStyleCache.containsKey(cacheKey)) {
+      _buttonStyleCache[cacheKey] = theme.buttonStyle ?? ElevatedButton.styleFrom(
+        padding: theme.buttonPadding,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(theme.borderRadius),
+        ),
+        backgroundColor: themeOfContext.primaryColor,
+        foregroundColor: themeOfContext.colorScheme.onPrimary,
+      );
+    }
+
+    return _buttonStyleCache[cacheKey]!;
   }
 
   /// Gets the text style for field labels.
@@ -101,12 +166,17 @@ class FormStyles {
   /// [context] is the build context.
   static TextStyle labelStyle(BuildContext context) {
     final theme = DynamicFormTheme.of(context);
+    final cacheKey = 'label_${theme.hashCode}';
 
-    return theme.labelStyle ?? TextStyle(
-      color: Colors.black87,
-      fontSize: 16,
-      fontWeight: FontWeight.bold,
-    );
+    if (!_textStyleCache.containsKey(cacheKey)) {
+      _textStyleCache[cacheKey] = theme.labelStyle ?? const TextStyle(
+        color: Colors.black87,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      );
+    }
+
+    return _textStyleCache[cacheKey]!;
   }
 
   /// Gets the background color for a field based on its state.
@@ -118,23 +188,29 @@ class FormStyles {
       return Colors.transparent;
     }
 
-    // Show error color if invalid
-    if (!field.valid) {
-      return theme.errorColor.withOpacity(0.1);
+    // Generate cache key based on field state
+    final cacheKey = '${fieldId}_bg_${field.valid}_${field.isModified}_${formState.isSubmitted}';
+
+    if (!_colorCache.containsKey(cacheKey)) {
+      Color color = Colors.transparent;
+
+      // Show error color if invalid
+      if (!field.valid) {
+        color = theme.errorColor.withOpacity(0.1);
+      }
+      // Show modified color if changed from initial and not yet successfully submitted
+      else if (field.isModified && !formState.isSubmitted) {
+        color = theme.modifiedColor.withOpacity(0.1);
+      }
+      // Only show success color after the entire form has been successfully submitted
+      else if (field.valid && formState.isSubmitted) {
+        color = theme.validColor.withOpacity(0.1);
+      }
+
+      _colorCache[cacheKey] = color;
     }
 
-    // Show modified color if changed from initial and not yet successfully submitted
-    if (field.isModified && !formState.isSubmitted) {
-      return theme.modifiedColor.withOpacity(0.1);
-    }
-
-    // Only show success color after the entire form has been successfully submitted
-    if (field.valid && formState.isSubmitted) {
-      return theme.validColor.withOpacity(0.1);
-    }
-
-    // Default background is transparent
-    return Colors.transparent;
+    return _colorCache[cacheKey]!;
   }
 
   /// Gets the border color for a field based on its state.
@@ -146,23 +222,29 @@ class FormStyles {
       return theme.disabledColor;
     }
 
-    // Show error color if invalid
-    if (!field.valid) {
-      return theme.errorColor;
+    // Generate cache key based on field state
+    final cacheKey = '${fieldId}_border_${field.valid}_${field.isModified}_${formState.isSubmitted}';
+
+    if (!_colorCache.containsKey(cacheKey)) {
+      Color color = theme.disabledColor;
+
+      // Show error color if invalid
+      if (!field.valid) {
+        color = theme.errorColor;
+      }
+      // Show modified color if changed from initial and not yet successfully submitted
+      else if (field.isModified && !formState.isSubmitted) {
+        color = theme.modifiedColor;
+      }
+      // Only show success color after the entire form has been successfully submitted
+      else if (field.valid && formState.isSubmitted) {
+        color = theme.validColor;
+      }
+
+      _colorCache[cacheKey] = color;
     }
 
-    // Show modified color if changed from initial and not yet successfully submitted
-    if (field.isModified && !formState.isSubmitted) {
-      return theme.modifiedColor;
-    }
-
-    // Only show success color after the entire form has been successfully submitted
-    if (field.valid && formState.isSubmitted) {
-      return theme.validColor;
-    }
-
-    // Default border color is gray
-    return theme.disabledColor;
+    return _colorCache[cacheKey]!;
   }
 
   /// Gets the toggle color for a boolean field based on its state.
@@ -174,22 +256,36 @@ class FormStyles {
       return isOn ? theme.modifiedColor : theme.disabledColor;
     }
 
-    // Error state
-    if (!field.valid) {
-      return theme.errorColor;
+    // Generate cache key based on field state and toggle position
+    final cacheKey = '${fieldId}_toggle_${field.valid}_${field.isModified}_${formState.isSubmitted}_${isOn}';
+
+    if (!_colorCache.containsKey(cacheKey)) {
+      Color color = isOn ? theme.modifiedColor : theme.disabledColor;
+
+      // Error state
+      if (!field.valid) {
+        color = theme.errorColor;
+      }
+      // Modified state (not yet submitted)
+      else if (field.isModified && !formState.isSubmitted) {
+        color = theme.modifiedColor;
+      }
+      // Successfully submitted state
+      else if (formState.isSubmitted) {
+        color = theme.validColor;
+      }
+
+      _colorCache[cacheKey] = color;
     }
 
-    // Modified state (not yet submitted)
-    if (field.isModified && !formState.isSubmitted) {
-      return theme.modifiedColor;
-    }
+    return _colorCache[cacheKey]!;
+  }
 
-    // Successfully submitted state
-    if (formState.isSubmitted) {
-      return theme.validColor;
-    }
-
-    // Default state based on toggle position
-    return isOn ? theme.modifiedColor : theme.disabledColor;
+  /// Clear style caches to free memory
+  static void clearCaches() {
+    _textStyleCache.clear();
+    _decorationCache.clear();
+    _buttonStyleCache.clear();
+    _colorCache.clear();
   }
 }

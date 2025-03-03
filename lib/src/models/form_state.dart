@@ -86,6 +86,16 @@ class CustomFormFieldState {
       error: json['error'],
     );
   }
+
+  /// Checks if this state equals another state (for efficient rebuilds)
+  bool equals(CustomFormFieldState other) {
+    return value == other.value &&
+        initialValue == other.initialValue &&
+        initial == other.initial &&
+        valid == other.valid &&
+        submitted == other.submitted &&
+        error == other.error;
+  }
 }
 
 /// Represents the state of an entire form.
@@ -101,6 +111,9 @@ class CustomFormState {
 
   /// Global error message for the form.
   String? globalError;
+
+  /// Set of fields that have been modified and need rebuilding
+  final Set<String> modifiedFields = {};
 
   /// Creates a new [CustomFormState] instance.
   ///
@@ -126,6 +139,13 @@ class CustomFormState {
     return fields.map((key, value) => MapEntry(key, value.value));
   }
 
+  /// Returns only the fields that need validation (modified or submitted)
+  Iterable<String> get fieldsNeedingValidation {
+    return fields.entries
+        .where((entry) => entry.value.isModified || !entry.value.valid)
+        .map((entry) => entry.key);
+  }
+
   /// Creates a copy of this [CustomFormState] with the given fields replaced.
   CustomFormState copyWith({
     Map<String, CustomFormFieldState>? fields,
@@ -141,19 +161,35 @@ class CustomFormState {
 
   /// Updates a specific field's state.
   void updateField(String id, CustomFormFieldState state) {
-    fields[id] = state;
+    final existingState = fields[id];
+    if (existingState == null || !existingState.equals(state)) {
+      fields[id] = state;
+      modifiedFields.add(id);
+    }
   }
 
   /// Updates a specific field's value and validates it.
   void updateFieldValue(String id, String value, {String? error}) {
     final field = fields[id];
     if (field != null) {
-      fields[id] = field.copyWith(
-        value: value,
-        initial: false,
-        valid: error == null,
-        error: error,
+      final oldField = CustomFormFieldState(
+        value: field.value,
+        initialValue: field.initialValue,
+        initial: field.initial,
+        valid: field.valid,
+        submitted: field.submitted,
+        error: field.error,
       );
+
+      field.value = value;
+      field.initial = field.value == field.initialValue;
+      field.valid = error == null;
+      field.error = error;
+
+      // Only mark as modified if something actually changed
+      if (!oldField.equals(field)) {
+        modifiedFields.add(id);
+      }
     }
   }
 
@@ -166,7 +202,13 @@ class CustomFormState {
         valid: true,
         submitted: false,
       );
+      modifiedFields.add(id);
     }
     globalError = null;
+  }
+
+  /// Clears the list of modified fields after they've been processed
+  void clearModifiedFields() {
+    modifiedFields.clear();
   }
 }

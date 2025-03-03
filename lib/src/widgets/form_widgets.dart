@@ -10,6 +10,10 @@ import '../utils/form_styles.dart';
 
 /// A collection of widgets for building form fields.
 class FormWidgets {
+  // Cache for patterns and keyboard types
+  static final Map<FieldType, TextInputType> _keyboardTypeCache = {};
+  static final Map<int, List<TextInputFormatter>> _formattersCache = {};
+
   /// Builds a form field based on its type.
   ///
   /// [field] is the field definition.
@@ -19,17 +23,39 @@ class FormWidgets {
   /// [updateFieldState] is a callback to update the field state.
   /// [context] is the build context.
   /// [formFields] is the list of all form fields.
+  /// [fieldStateNotifiers] is a map of ValueNotifiers for field states.
   static Widget buildFormField(
-    CustomFormField field,
-    Map<String, TextEditingController> controllers,
-    Map<String, FocusNode> focusNodes,
-    CustomFormState formState,
-    Function(String, dynamic) updateFieldState,
-    BuildContext context,
-    List<CustomFormField> formFields,
-  ) {
+      CustomFormField field,
+      Map<String, TextEditingController> controllers,
+      Map<String, FocusNode> focusNodes,
+      CustomFormState formState,
+      Function(String, dynamic) updateFieldState,
+      BuildContext context,
+      List<CustomFormField> formFields, [
+        Map<String, ValueNotifier<CustomFormFieldState>>? fieldStateNotifiers,
+      ]) {
+    // Ensure both controller and focusNode exist
+    TextEditingController controller;
+    FocusNode focusNode;
+
+    // Get or create controller
+    if (controllers.containsKey(field.id)) {
+      controller = controllers[field.id]!;
+    } else {
+      controller = TextEditingController(text: field.initialValue?.toString() ?? '');
+      controllers[field.id] = controller;
+    }
+
+    // Get or create focus node
+    if (focusNodes.containsKey(field.id)) {
+      focusNode = focusNodes[field.id]!;
+    } else {
+      focusNode = FocusNode();
+      focusNodes[field.id] = focusNode;
+    }
+
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -42,20 +68,32 @@ class FormWidgets {
                 padding: EdgeInsets.only(top: field.type == FieldType.spacer ? 0 : 16),
                 child: field.required
                     ? Text(
-                        "*",
-                        style: FormStyles.requiredFieldStyle(context),
-                      )
-                    : SizedBox(),
+                  "*",
+                  style: FormStyles.requiredFieldStyle(context),
+                )
+                    : const SizedBox(),
               ),
               Expanded(
-                child: _buildFieldByType(
+                child: fieldStateNotifiers != null && fieldStateNotifiers.containsKey(field.id)
+                    ? _buildFieldWithValueNotifier(
                   field,
-                  controllers,
+                  controller,
+                  focusNode,
+                  fieldStateNotifiers[field.id]!,
+                  updateFieldState,
+                  context,
+                  formFields,
                   focusNodes,
+                )
+                    : _buildFieldByType(
+                  field,
+                  controller,
+                  focusNode,
                   formState,
                   updateFieldState,
                   context,
                   formFields,
+                  focusNodes,
                 ),
               ),
             ],
@@ -65,69 +103,116 @@ class FormWidgets {
     );
   }
 
+
+
+  // Global focus nodes storage for when direct map access isn't available
+  static final Map<String, FocusNode> _globalFocusNodes = {};
+
+  /// Builds a field with a ValueNotifier for more efficient rebuilds
+  static Widget _buildFieldWithValueNotifier(
+      CustomFormField field,
+      TextEditingController controller,
+      FocusNode focusNode,
+      ValueNotifier<CustomFormFieldState> fieldStateNotifier,
+      Function(String, dynamic) updateFieldState,
+      BuildContext context,
+      List<CustomFormField> formFields,
+      Map<String, FocusNode> allFocusNodes,
+      ) {
+    return ValueListenableBuilder<CustomFormFieldState>(
+      valueListenable: fieldStateNotifier,
+      builder: (context, fieldState, child) {
+        // Create a minimal version of formState with just this field
+        final singleFieldFormState = CustomFormState();
+        singleFieldFormState.fields[field.id] = fieldState;
+
+        return _buildFieldByType(
+          field,
+          controller,
+          focusNode,
+          singleFieldFormState,
+          updateFieldState,
+          context,
+          formFields,
+          allFocusNodes,
+        );
+      },
+    );
+  }
+
   /// Builds a field widget based on its type.
   static Widget _buildFieldByType(
-    CustomFormField field,
-    Map<String, TextEditingController> controllers,
-    Map<String, FocusNode> focusNodes,
-    CustomFormState formState,
-    Function(String, dynamic) updateFieldState,
-    BuildContext context,
-    List<CustomFormField> formFields,
-  ) {
+      CustomFormField field,
+      TextEditingController controller,
+      FocusNode focusNode,
+      CustomFormState formState,
+      Function(String, dynamic) updateFieldState,
+      BuildContext context,
+      List<CustomFormField> formFields,
+      Map<String, FocusNode> allFocusNodes,
+      ) {
     switch (field.type) {
       case FieldType.datetime:
-        return buildDateTimeField(field, controllers, focusNodes, formState, updateFieldState, context);
+        return buildDateTimeField(field, controller, focusNode, formState, updateFieldState, context);
       case FieldType.select:
-        return buildSelectField(field, controllers, formState, updateFieldState, context);
+        return buildSelectField(field, controller, formState, updateFieldState, context);
       case FieldType.textarea:
-        return buildTextAreaField(field, controllers, focusNodes, formState, updateFieldState, context);
+        return buildTextAreaField(field, controller, focusNode, formState, updateFieldState, context);
       case FieldType.date:
-        return buildDateField(field, controllers, focusNodes, formState, updateFieldState, context);
+        return buildDateField(field, controller, focusNode, formState, updateFieldState, context);
       case FieldType.boolean:
-        return buildBooleanField(field, controllers, formState, updateFieldState, context);
+        return buildBooleanField(field, controller, formState, updateFieldState, context);
       case FieldType.spacer:
         return buildSpacerField(field, context);
       case FieldType.multiselect:
-        return buildMultiSelectField(field, controllers, formState, updateFieldState, context);
+        return buildMultiSelectField(field, controller, formState, updateFieldState, context);
       case FieldType.address:
-        return buildAddressField(field, controllers, focusNodes, formState, updateFieldState, context);
+        return buildAddressField(field, controller, focusNode, formState, updateFieldState, context);
       default:
-        return buildTextField(field, controllers, focusNodes, formState, updateFieldState, context, formFields);
+        return buildTextField(field, controller, focusNode, formState, updateFieldState, context, formFields, allFocusNodes);
     }
   }
 
   /// Builds a text field.
   static Widget buildTextField(
-    CustomFormField field,
-    Map<String, TextEditingController> controllers,
-    Map<String, FocusNode> focusNodes,
-    CustomFormState formState,
-    Function(String, dynamic) updateFieldState,
-    BuildContext context,
-    List<CustomFormField> formFields,
-  ) {
+      CustomFormField field,
+      TextEditingController controller,
+      FocusNode focusNode,
+      CustomFormState formState,
+      Function(String, dynamic) updateFieldState,
+      BuildContext context,
+      List<CustomFormField> formFields,
+      Map<String, FocusNode> allFocusNodes,
+      ) {
     final isLastField = field == formFields.last;
+
+    // Use cached text formatters
     List<TextInputFormatter>? formatters;
+    int formatterCacheKey = field.id.hashCode;
+    if (field.maxLength != null) formatterCacheKey ^= field.maxLength.hashCode;
+    if (field.type == FieldType.tel) formatterCacheKey ^= field.type.index;
 
-    if (field.enableMask && field.type == FieldType.tel) {
-      formatters = [
-        FilteringTextInputFormatter.digitsOnly,
-        LengthLimitingTextInputFormatter(10),
-      ];
-    }
+    if (!_formattersCache.containsKey(formatterCacheKey)) {
+      formatters = [];
 
-    if (field.maxLength != null) {
-      formatters = [
-        ...formatters ?? [],
-        LengthLimitingTextInputFormatter(field.maxLength),
-      ];
+      if (field.enableMask && field.type == FieldType.tel) {
+        formatters.add(FilteringTextInputFormatter.digitsOnly);
+        formatters.add(LengthLimitingTextInputFormatter(10));
+      }
+
+      if (field.maxLength != null) {
+        formatters.add(LengthLimitingTextInputFormatter(field.maxLength));
+      }
+
+      _formattersCache[formatterCacheKey] = formatters;
+    } else {
+      formatters = _formattersCache[formatterCacheKey];
     }
 
     return TextFormField(
       key: Key(field.id),
-      controller: controllers[field.id],
-      focusNode: focusNodes[field.id],
+      controller: controller,
+      focusNode: focusNode,
       enabled: !field.disabled,
       readOnly: field.readonly,
       keyboardType: _getKeyboardType(field.type),
@@ -149,7 +234,16 @@ class FormWidgets {
           for (int i = nextIndex; i < formFields.length; i++) {
             final nextField = formFields[i];
             if (!nextField.disabled && nextField.type != FieldType.spacer) {
-              FocusScope.of(context).requestFocus(focusNodes[nextField.id]);
+              // Use the focus node from our parameters if available
+              if (allFocusNodes.containsKey(nextField.id)) {
+                FocusScope.of(context).requestFocus(allFocusNodes[nextField.id]);
+              } else {
+                // Fall back to our global cache if needed
+                if (!_globalFocusNodes.containsKey(nextField.id)) {
+                  _globalFocusNodes[nextField.id] = FocusNode();
+                }
+                FocusScope.of(context).requestFocus(_globalFocusNodes[nextField.id]);
+              }
               break;
             }
           }
@@ -160,20 +254,17 @@ class FormWidgets {
 
   /// Builds a select field (dropdown).
   static Widget buildSelectField(
-    CustomFormField field,
-    Map<String, TextEditingController> controllers,
-    CustomFormState formState,
-    Function(String, dynamic) updateFieldState,
-    BuildContext context,
-  ) {
-    final currentValue = controllers[field.id]?.text;
-    final items = field.options?.map<DropdownMenuItem<String>>((option) {
-          return DropdownMenuItem<String>(
-            value: option['id'].toString(),
-            child: Text(option['name']),
-          );
-        }).toList() ??
-        [];
+      CustomFormField field,
+      TextEditingController controller,
+      CustomFormState formState,
+      Function(String, dynamic) updateFieldState,
+      BuildContext context,
+      ) {
+    final currentValue = controller.text;
+
+    // Memoize dropdown items since they don't change often
+    final cacheKey = '${field.id}_items';
+    final items = _getCachedDropdownItems(field, cacheKey);
 
     // Ensure the current value is in the items list
     final isValidValue = items.any((item) => item.value == currentValue);
@@ -187,31 +278,47 @@ class FormWidgets {
         fieldId: field.id,
         formState: formState,
       ),
-      style: TextStyle(fontSize: 16, color: Colors.black),
+      style: const TextStyle(fontSize: 16, color: Colors.black),
       borderRadius: BorderRadius.circular(8.0),
       items: items,
       onChanged: field.disabled || field.readonly
           ? null
           : (value) {
-              if (value != null) {
-                controllers[field.id]?.text = value;
-                updateFieldState(field.id, value);
-              }
-            },
+        if (value != null) {
+          controller.text = value;
+          updateFieldState(field.id, value);
+        }
+      },
     );
+  }
+
+  // Cache for dropdown items to avoid recreating frequently
+  static final Map<String, List<DropdownMenuItem<String>>> _dropdownItemsCache = {};
+
+  // Helper to get cached dropdown items
+  static List<DropdownMenuItem<String>> _getCachedDropdownItems(CustomFormField field, String cacheKey) {
+    if (!_dropdownItemsCache.containsKey(cacheKey)) {
+      _dropdownItemsCache[cacheKey] = field.options?.map<DropdownMenuItem<String>>((option) {
+        return DropdownMenuItem<String>(
+          value: option['id'].toString(),
+          child: Text(option['name']),
+        );
+      }).toList() ?? [];
+    }
+    return _dropdownItemsCache[cacheKey]!;
   }
 
   /// Builds a multi-select field.
   static Widget buildMultiSelectField(
-    CustomFormField field,
-    Map<String, TextEditingController> controllers,
-    CustomFormState formState,
-    Function(String, dynamic) updateFieldState,
-    BuildContext context,
-  ) {
+      CustomFormField field,
+      TextEditingController controller,
+      CustomFormState formState,
+      Function(String, dynamic) updateFieldState,
+      BuildContext context,
+      ) {
     // Simple implementation that uses a comma-separated string
-    // A more robust implementation might use a custom dialog or chips
-    final currentValues = controllers[field.id]?.text.split(',').where((s) => s.isNotEmpty).toList() ?? [];
+    // Extract to a list only once, not on every rebuild
+    final currentValues = controller.text.split(',').where((s) => s.isNotEmpty).toList();
 
     return FormField<List<String>>(
       initialValue: currentValues,
@@ -233,57 +340,19 @@ class FormWidgets {
                 children: [
                   currentValues.isNotEmpty
                       ? SizedBox(
-                          height: Platform.isAndroid || Platform.isIOS ? 0 : 8,
-                        )
+                    height: Platform.isAndroid || Platform.isIOS ? 0 : 8,
+                  )
                       : Container(),
                   Wrap(
                     spacing: Platform.isAndroid || Platform.isIOS ? 8 : 12.0,
                     runSpacing: Platform.isAndroid || Platform.isIOS ? 0 : 8.0,
                     alignment: WrapAlignment.start,
-                    children: currentValues.map((value) {
-                      final option = field.options?.firstWhere(
-                        (o) => o['id'].toString() == value,
-                        orElse: () => {'id': value, 'name': value},
-                      );
-                      final name = option?['name'] ?? value;
-
-                      return Chip(
-                        labelPadding: EdgeInsets.all(0),
-                        label: Text(name),
-                        onDeleted: field.disabled || field.readonly
-                            ? null
-                            : () {
-                                final newValues = List<String>.from(currentValues)..remove(value);
-                                controllers[field.id]?.text = newValues.join(',');
-                                updateFieldState(field.id, newValues.join(','));
-                              },
-                      );
-                    }).toList(),
+                    children: _buildOptionChips(field, currentValues, controller, updateFieldState),
                   ),
                   if (!field.disabled && !field.readonly)
                     SizedBox(
                       height: 32,
-                      child: DropdownButton<String>(
-                        focusColor: Colors.transparent,
-                        hint: Text('Add ${field.label}', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.normal)),
-                        isExpanded: true,
-                        underline: Container(),
-                        borderRadius: BorderRadius.circular(8),
-                        itemHeight: 48,
-                        items: (field.options ?? []).where((o) => !currentValues.contains(o['id'].toString())).map<DropdownMenuItem<String>>((option) {
-                          return DropdownMenuItem<String>(
-                            value: option['id'].toString(),
-                            child: Text(option['name']),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            final newValues = List<String>.from(currentValues)..add(value);
-                            controllers[field.id]?.text = newValues.join(',');
-                            updateFieldState(field.id, newValues.join(','));
-                          }
-                        },
-                      ),
+                      child: _buildOptionDropdown(field, currentValues, controller, updateFieldState),
                     ),
                 ],
               ),
@@ -305,73 +374,163 @@ class FormWidgets {
     );
   }
 
+  // Helper to build option chips (extracted for clarity)
+  static List<Widget> _buildOptionChips(
+      CustomFormField field,
+      List<String> currentValues,
+      TextEditingController controller,
+      Function(String, dynamic) updateFieldState
+      ) {
+    // Cache option name lookup for better performance
+    final Map<String, String> optionNameCache = {};
+    if (field.options != null) {
+      for (var option in field.options!) {
+        optionNameCache[option['id'].toString()] = option['name'];
+      }
+    }
+
+    return currentValues.map((value) {
+      final name = optionNameCache[value] ?? value;
+
+      return Chip(
+        labelPadding: EdgeInsets.zero,
+        label: Text(name),
+        onDeleted: field.disabled || field.readonly
+            ? null
+            : () {
+          final newValues = List<String>.from(currentValues)..remove(value);
+          controller.text = newValues.join(',');
+          updateFieldState(field.id, newValues.join(','));
+        },
+      );
+    }).toList();
+  }
+
+  // Helper to build option dropdown (extracted for clarity)
+  static Widget _buildOptionDropdown(
+      CustomFormField field,
+      List<String> currentValues,
+      TextEditingController controller,
+      Function(String, dynamic) updateFieldState
+      ) {
+    // Filter options that haven't been selected yet
+    final availableOptions = (field.options ?? [])
+        .where((o) => !currentValues.contains(o['id'].toString()))
+        .toList();
+
+    return DropdownButton<String>(
+      focusColor: Colors.transparent,
+      hint: Text(
+          'Add ${field.label}',
+          style: const TextStyle(
+              color: Colors.black87,
+              fontSize: 16,
+              fontWeight: FontWeight.normal
+          )
+      ),
+      isExpanded: true,
+      underline: Container(),
+      borderRadius: BorderRadius.circular(8),
+      itemHeight: 48,
+      items: availableOptions.map<DropdownMenuItem<String>>((option) {
+        return DropdownMenuItem<String>(
+          value: option['id'].toString(),
+          child: Text(option['name']),
+        );
+      }).toList(),
+      onChanged: (value) {
+        if (value != null) {
+          final newValues = List<String>.from(currentValues)..add(value);
+          controller.text = newValues.join(',');
+          updateFieldState(field.id, newValues.join(','));
+        }
+      },
+    );
+  }
+
+  // Cache for DateFormat objects
+  static final Map<String, DateFormat> _dateFormatCache = {};
+
+  // Helper to get cached DateFormat
+  static DateFormat _getCachedDateFormat(String? format, String defaultFormat) {
+    final formatString = format ?? defaultFormat;
+    if (!_dateFormatCache.containsKey(formatString)) {
+      _dateFormatCache[formatString] = DateFormat(formatString);
+    }
+    return _dateFormatCache[formatString]!;
+  }
+
   /// Builds a date and time picker field.
   static Widget buildDateTimeField(
-    CustomFormField field,
-    Map<String, TextEditingController> controllers,
-    Map<String, FocusNode> focusNodes,
-    CustomFormState formState,
-    Function(String, dynamic) updateFieldState,
-    BuildContext context,
-  ) {
+      CustomFormField field,
+      TextEditingController controller,
+      FocusNode focusNode,
+      CustomFormState formState,
+      Function(String, dynamic) updateFieldState,
+      BuildContext context,
+      ) {
     return GestureDetector(
       onTap: field.disabled || field.readonly
           ? null
           : () async {
-              // Parse existing date if available
-              DateTime initialDate = DateTime.now();
-              if (controllers[field.id]?.text.isNotEmpty == true) {
-                try {
-                  initialDate = DateFormat(field.format ?? 'yyyy-MM-dd h:mm a').parse(controllers[field.id]!.text);
-                } catch (e) {
-                  // If parsing fails, use current date
-                }
-              }
+        // Parse existing date if available
+        DateTime initialDate = DateTime.now();
+        if (controller.text.isNotEmpty) {
+          try {
+            final format = _getCachedDateFormat(field.format, 'yyyy-MM-dd h:mm a');
+            initialDate = format.parse(controller.text);
+          } catch (e) {
+            // If parsing fails, use current date
+          }
+        }
 
-              DateTime? pickedDate = await showDatePicker(
-                context: context,
-                initialDate: initialDate,
-                firstDate: DateTime(1900),
-                lastDate: DateTime(2100),
+        final DateTime? pickedDate = await showDatePicker(
+          context: context,
+          initialDate: initialDate,
+          firstDate: DateTime(1900),
+          lastDate: DateTime(2100),
+        );
+
+        if (pickedDate != null) {
+          final TimeOfDay initialTime = TimeOfDay.fromDateTime(initialDate);
+          final TimeOfDay? pickedTime = await showTimePicker(
+            context: context,
+            initialTime: initialTime,
+            builder: (BuildContext context, Widget? child) {
+              // Force 12-hour format
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  alwaysUse24HourFormat: false,
+                ),
+                child: child!,
               );
-              if (pickedDate != null) {
-                TimeOfDay initialTime = TimeOfDay.fromDateTime(initialDate);
-                TimeOfDay? pickedTime = await showTimePicker(
-                  context: context,
-                  initialTime: initialTime,
-                  builder: (BuildContext context, Widget? child) {
-                    // Force 12-hour format
-                    return MediaQuery(
-                      data: MediaQuery.of(context).copyWith(
-                        alwaysUse24HourFormat: false,
-                      ),
-                      child: child!,
-                    );
-                  },
-                );
-                if (pickedTime != null) {
-                  DateTime dateTime = DateTime(
-                    pickedDate.year,
-                    pickedDate.month,
-                    pickedDate.day,
-                    pickedTime.hour,
-                    pickedTime.minute,
-                  );
-
-                  // Use AM/PM format if no specific format is provided
-                  String formatPattern = field.format ?? 'yyyy-MM-dd h:mm a';
-                  String formattedDateTime = DateFormat(formatPattern).format(dateTime);
-
-                  controllers[field.id]?.text = formattedDateTime;
-                  updateFieldState(field.id, formattedDateTime);
-                }
-              }
             },
+          );
+
+          if (pickedTime != null) {
+            final DateTime dateTime = DateTime(
+              pickedDate.year,
+              pickedDate.month,
+              pickedDate.day,
+              pickedTime.hour,
+              pickedTime.minute,
+            );
+
+            // Use AM/PM format if no specific format is provided
+            final formatPattern = field.format ?? 'yyyy-MM-dd h:mm a';
+            final format = _getCachedDateFormat(formatPattern, 'yyyy-MM-dd h:mm a');
+            final formattedDateTime = format.format(dateTime);
+
+            controller.text = formattedDateTime;
+            updateFieldState(field.id, formattedDateTime);
+          }
+        }
+      },
       child: AbsorbPointer(
         child: TextFormField(
           key: Key(field.id),
-          controller: controllers[field.id],
-          focusNode: focusNodes[field.id],
+          controller: controller,
+          focusNode: focusNode,
           enabled: !field.disabled,
           readOnly: true,
           decoration: FormStyles.inputDecoration(
@@ -380,7 +539,7 @@ class FormWidgets {
             hintText: field.placeholder,
             fieldId: field.id,
             formState: formState,
-            suffixIcon: Icon(Icons.calendar_today),
+            suffixIcon: const Icon(Icons.calendar_today),
           ),
         ),
       ),
@@ -389,17 +548,17 @@ class FormWidgets {
 
   /// Builds a multi-line text field.
   static Widget buildTextAreaField(
-    CustomFormField field,
-    Map<String, TextEditingController> controllers,
-    Map<String, FocusNode> focusNodes,
-    CustomFormState formState,
-    Function(String, dynamic) updateFieldState,
-    BuildContext context,
-  ) {
+      CustomFormField field,
+      TextEditingController controller,
+      FocusNode focusNode,
+      CustomFormState formState,
+      Function(String, dynamic) updateFieldState,
+      BuildContext context,
+      ) {
     return TextFormField(
       key: Key(field.id),
-      controller: controllers[field.id],
-      focusNode: focusNodes[field.id],
+      controller: controller,
+      focusNode: focusNode,
       enabled: !field.disabled,
       readOnly: field.readonly,
       maxLines: field.rows,
@@ -419,34 +578,35 @@ class FormWidgets {
 
   /// Builds a date picker field.
   static Widget buildDateField(
-    CustomFormField field,
-    Map<String, TextEditingController> controllers,
-    Map<String, FocusNode> focusNodes,
-    CustomFormState formState,
-    Function(String, dynamic) updateFieldState,
-    BuildContext context,
-  ) {
+      CustomFormField field,
+      TextEditingController controller,
+      FocusNode focusNode,
+      CustomFormState formState,
+      Function(String, dynamic) updateFieldState,
+      BuildContext context,
+      ) {
     return GestureDetector(
       onTap: field.disabled || field.readonly
           ? null
           : () async {
-              DateTime? pickedDate = await showDatePicker(
-                context: context,
-                initialDate: DateTime.now(),
-                firstDate: DateTime(1900),
-                lastDate: DateTime(2100),
-              );
-              if (pickedDate != null) {
-                String formattedDate = DateFormat(field.format ?? 'yyyy-MM-dd').format(pickedDate);
-                controllers[field.id]?.text = formattedDate;
-                updateFieldState(field.id, formattedDate);
-              }
-            },
+        DateTime? pickedDate = await showDatePicker(
+          context: context,
+          initialDate: DateTime.now(),
+          firstDate: DateTime(1900),
+          lastDate: DateTime(2100),
+        );
+        if (pickedDate != null) {
+          final format = _getCachedDateFormat(field.format, 'yyyy-MM-dd');
+          final formattedDate = format.format(pickedDate);
+          controller.text = formattedDate;
+          updateFieldState(field.id, formattedDate);
+        }
+      },
       child: AbsorbPointer(
         child: TextFormField(
           key: Key(field.id),
-          controller: controllers[field.id],
-          focusNode: focusNodes[field.id],
+          controller: controller,
+          focusNode: focusNode,
           enabled: !field.disabled,
           readOnly: true,
           decoration: FormStyles.inputDecoration(
@@ -455,7 +615,7 @@ class FormWidgets {
             hintText: field.placeholder,
             fieldId: field.id,
             formState: formState,
-            suffixIcon: Icon(Icons.calendar_today),
+            suffixIcon: const Icon(Icons.calendar_today),
           ),
         ),
       ),
@@ -464,25 +624,25 @@ class FormWidgets {
 
   /// Builds a spacer or section divider.
   static Widget buildSpacerField(
-    CustomFormField field,
-    BuildContext context,
-  ) {
+      CustomFormField field,
+      BuildContext context,
+      ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         field.label.isEmpty
-            ? SizedBox()
+            ? const SizedBox()
             : Text(
-                field.label,
-                style: FormStyles.labelStyle(context),
-              ),
-        field.label.isEmpty ? SizedBox() : SizedBox(height: 4),
+          field.label,
+          style: FormStyles.labelStyle(context),
+        ),
+        field.label.isEmpty ? const SizedBox() : const SizedBox(height: 4),
         Container(
           height: 1,
-          margin: EdgeInsets.only(bottom: 0),
-          decoration: BoxDecoration(
+          margin: const EdgeInsets.only(bottom: 0),
+          decoration: const BoxDecoration(
             color: Colors.black26,
           ),
         ),
@@ -492,17 +652,18 @@ class FormWidgets {
 
   /// Builds a boolean toggle field.
   static Widget buildBooleanField(
-    CustomFormField field,
-    Map<String, TextEditingController> controllers,
-    CustomFormState formState,
-    Function(String, dynamic) updateFieldState,
-    BuildContext context,
-  ) {
-    bool currentValue = controllers[field.id]?.text.toLowerCase() == 'true';
+      CustomFormField field,
+      TextEditingController controller,
+      CustomFormState formState,
+      Function(String, dynamic) updateFieldState,
+      BuildContext context,
+      ) {
+    // Parse boolean value once, not on every render pass
+    final bool currentValue = controller.text.toLowerCase() == 'true';
 
     return TextFormField(
       key: Key(field.id),
-      controller: controllers[field.id],
+      controller: controller,
       enabled: !field.disabled,
       readOnly: true,
       keyboardType: _getKeyboardType(field.type),
@@ -512,10 +673,10 @@ class FormWidgets {
           ? null
           : () {
         final newValue = (!currentValue).toString();
-        controllers[field.id]?.text = newValue;
+        controller.text = newValue;
         updateFieldState(field.id, newValue);
       },
-      style: TextStyle(
+      style: const TextStyle(
         color: Colors.transparent,
       ),
       decoration: FormStyles.inputDecoration(
@@ -531,9 +692,9 @@ class FormWidgets {
           children: [
             Text(
               currentValue ? "Yes" : "No",
-              style: TextStyle(fontSize: 16),
+              style: const TextStyle(fontSize: 16),
             ),
-            SizedBox(width: 8,),
+            const SizedBox(width: 8),
             Container(
               width: 48,
               height: 24,
@@ -573,31 +734,47 @@ class FormWidgets {
 
   /// Builds an address field (composite field).
   static Widget buildAddressField(
-    CustomFormField field,
-    Map<String, TextEditingController> controllers,
-    Map<String, FocusNode> focusNodes,
-    CustomFormState formState,
-    Function(String, dynamic) updateFieldState,
-    BuildContext context,
-  ) {
+      CustomFormField field,
+      TextEditingController controller,
+      FocusNode focusNode,
+      CustomFormState formState,
+      Function(String, dynamic) updateFieldState,
+      BuildContext context,
+      ) {
     // For simplicity, just rendering a text field
     // A more robust implementation would include multiple fields
-    return buildTextField(field, controllers, focusNodes, formState, updateFieldState, context, [field]);
+    return buildTextField(field, controller, focusNode, formState, updateFieldState, context, [field], {});
   }
 
   /// Gets the appropriate keyboard type for a field.
   static TextInputType _getKeyboardType(FieldType type) {
-    switch (type) {
-      case FieldType.email:
-        return TextInputType.emailAddress;
-      case FieldType.tel:
-        return TextInputType.phone;
-      case FieldType.number:
-        return TextInputType.number;
-      case FieldType.textarea:
-        return TextInputType.multiline;
-      default:
-        return TextInputType.text;
+    if (!_keyboardTypeCache.containsKey(type)) {
+      switch (type) {
+        case FieldType.email:
+          _keyboardTypeCache[type] = TextInputType.emailAddress;
+          break;
+        case FieldType.tel:
+          _keyboardTypeCache[type] = TextInputType.phone;
+          break;
+        case FieldType.number:
+          _keyboardTypeCache[type] = TextInputType.number;
+          break;
+        case FieldType.textarea:
+          _keyboardTypeCache[type] = TextInputType.multiline;
+          break;
+        default:
+          _keyboardTypeCache[type] = TextInputType.text;
+          break;
+      }
     }
+    return _keyboardTypeCache[type]!;
+  }
+
+  /// Clears caches to free memory (call when form is disposed)
+  static void clearCaches() {
+    _keyboardTypeCache.clear();
+    _formattersCache.clear();
+    _dropdownItemsCache.clear();
+    _dateFormatCache.clear();
   }
 }

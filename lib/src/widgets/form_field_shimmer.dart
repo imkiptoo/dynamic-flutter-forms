@@ -5,32 +5,32 @@ import 'shimmer_effect.dart';
 
 /// A collection of shimmer placeholders for form fields.
 class FormFieldShimmer {
+  // Cache shimmer colors to avoid recreation
+  static final Color baseColor = Colors.black12;
+  static final Color highlightColor = Colors.white70;
+
   /// Creates a shimmer placeholder for a form field.
   static Widget buildShimmerField(
       CustomFormField field,
       BuildContext context,
       ) {
-    // Default shimmer colors
-    final Color baseColor = Colors.black12;
-    final Color highlightColor = Colors.transparent;
-
     switch (field.type) {
       case FieldType.select:
       case FieldType.multiselect:
-        return buildSelectFieldShimmer(field, context, baseColor, highlightColor);
+        return buildSelectFieldShimmer(field, context);
       case FieldType.textarea:
-        return buildTextAreaFieldShimmer(field, context, baseColor, highlightColor);
+        return buildTextAreaFieldShimmer(field, context);
       case FieldType.date:
       case FieldType.datetime:
-        return buildDateFieldShimmer(field, context, baseColor, highlightColor);
+        return buildDateFieldShimmer(field, context);
       case FieldType.boolean:
-        return buildBooleanFieldShimmer(field, context, baseColor, highlightColor);
+        return buildBooleanFieldShimmer(field, context);
       case FieldType.spacer:
-        return buildSpacerFieldShimmer(field, context, baseColor, highlightColor);
+        return buildSpacerFieldShimmer(field, context);
       case FieldType.button:
-        return buildButtonFieldShimmer(field, context, baseColor, highlightColor);
+        return buildButtonFieldShimmer(field, context);
       default:
-        return buildTextFieldShimmer(field, context, baseColor, highlightColor);
+        return buildTextFieldShimmer(field, context);
     }
   }
 
@@ -38,22 +38,19 @@ class FormFieldShimmer {
   static Widget buildTextFieldShimmer(
       CustomFormField field,
       BuildContext context,
-      Color baseColor,
-      Color highlightColor,
       ) {
     final formTheme = DynamicFormTheme.of(context);
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
+              SizedBox(
                 width: 16,
-                alignment: Alignment.center,
                 child: field.required
                     ? ShimmerBuilder(
                   baseColor: baseColor,
@@ -68,7 +65,7 @@ class FormFieldShimmer {
                     ),
                   ),
                 )
-                    : SizedBox(),
+                    : const SizedBox(),
               ),
               Expanded(
                 child: ShimmerBuilder(
@@ -92,7 +89,7 @@ class FormFieldShimmer {
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
-                        Expanded(child: SizedBox()),
+                        const Spacer(),
                       ],
                     ),
                   ),
@@ -109,13 +106,11 @@ class FormFieldShimmer {
   static Widget buildSelectFieldShimmer(
       CustomFormField field,
       BuildContext context,
-      Color baseColor,
-      Color highlightColor,
       ) {
     final formTheme = DynamicFormTheme.of(context);
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -136,7 +131,7 @@ class FormFieldShimmer {
                 ),
               ),
             )
-                : SizedBox(),
+                : const SizedBox(),
           ),
           Expanded(
             child: ShimmerBuilder(
@@ -160,7 +155,7 @@ class FormFieldShimmer {
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    Expanded(child: SizedBox()),
+                    const Spacer(),
                     Container(
                       width: 24,
                       height: 24,
@@ -183,14 +178,12 @@ class FormFieldShimmer {
   static Widget buildTextAreaFieldShimmer(
       CustomFormField field,
       BuildContext context,
-      Color baseColor,
-      Color highlightColor,
       ) {
     final formTheme = DynamicFormTheme.of(context);
     final double height = field.rows * 24.0;
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -214,7 +207,7 @@ class FormFieldShimmer {
                     ),
                   ),
                 )
-                    : SizedBox(),
+                    : const SizedBox(),
               ),
               Expanded(
                 child: ShimmerBuilder(
@@ -255,13 +248,11 @@ class FormFieldShimmer {
   static Widget buildDateFieldShimmer(
       CustomFormField field,
       BuildContext context,
-      Color baseColor,
-      Color highlightColor,
       ) {
     final formTheme = DynamicFormTheme.of(context);
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -282,7 +273,7 @@ class FormFieldShimmer {
                 ),
               ),
             )
-                : SizedBox(),
+                : const SizedBox(),
           ),
           Expanded(
             child: ShimmerBuilder(
@@ -307,7 +298,7 @@ class FormFieldShimmer {
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    Expanded(child: SizedBox()),
+                    const Spacer(),
                     Container(
                       width: 24,
                       height: 24,
@@ -330,13 +321,11 @@ class FormFieldShimmer {
   static Widget buildBooleanFieldShimmer(
       CustomFormField field,
       BuildContext context,
-      Color baseColor,
-      Color highlightColor,
       ) {
     final formTheme = DynamicFormTheme.of(context);
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -357,7 +346,7 @@ class FormFieldShimmer {
                 ),
               ),
             )
-                : SizedBox(),
+                : const SizedBox(),
           ),
           Expanded(
             child: ShimmerBuilder(
@@ -406,11 +395,9 @@ class FormFieldShimmer {
   static Widget buildSpacerFieldShimmer(
       CustomFormField field,
       BuildContext context,
-      Color baseColor,
-      Color highlightColor,
       ) {
     return Padding(
-      padding: EdgeInsets.only(left: 16, top: 8, bottom: 8),
+      padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.start,
@@ -429,14 +416,14 @@ class FormFieldShimmer {
                 ),
               ),
             ),
-          if (field.label.isNotEmpty) SizedBox(height: 4),
+          if (field.label.isNotEmpty) const SizedBox(height: 4),
           ShimmerBuilder(
             baseColor: baseColor,
             highlightColor: highlightColor,
             child: Container(
               height: 1,
-              margin: EdgeInsets.only(bottom: 0),
-              decoration: BoxDecoration(
+              margin: const EdgeInsets.only(bottom: 0),
+              decoration: const BoxDecoration(
                 color: Colors.white,
               ),
             ),
@@ -450,8 +437,6 @@ class FormFieldShimmer {
   static Widget buildButtonFieldShimmer(
       CustomFormField field,
       BuildContext context,
-      Color baseColor,
-      Color highlightColor,
       ) {
     final formTheme = DynamicFormTheme.of(context);
 
