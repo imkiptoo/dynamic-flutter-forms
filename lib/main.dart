@@ -30,6 +30,7 @@ class MyApp extends StatelessWidget {
         ],
       ),
       home: const ExampleFormScreen(),
+      locale: Locale("en", "US"),
       debugShowCheckedModeBanner: false,
     );
   }

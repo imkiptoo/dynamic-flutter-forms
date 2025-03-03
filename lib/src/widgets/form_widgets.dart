@@ -17,14 +17,14 @@ class FormWidgets {
   /// [context] is the build context.
   /// [formFields] is the list of all form fields.
   static Widget buildFormField(
-      CustomFormField field,
-      Map<String, TextEditingController> controllers,
-      Map<String, FocusNode> focusNodes,
-      CustomFormState formState,
-      Function(String, String) updateFieldState,
-      BuildContext context,
-      List<CustomFormField> formFields,
-      ) {
+    CustomFormField field,
+    Map<String, TextEditingController> controllers,
+    Map<String, FocusNode> focusNodes,
+    CustomFormState formState,
+    Function(String, String) updateFieldState,
+    BuildContext context,
+    List<CustomFormField> formFields,
+  ) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       child: Column(
@@ -39,9 +39,9 @@ class FormWidgets {
                 padding: EdgeInsets.only(top: field.type == FieldType.spacer ? 0 : 16),
                 child: field.required
                     ? Text(
-                  "*",
-                  style: FormStyles.requiredFieldStyle(context),
-                )
+                        "*",
+                        style: FormStyles.requiredFieldStyle(context),
+                      )
                     : SizedBox(),
               ),
               Expanded(
@@ -64,14 +64,14 @@ class FormWidgets {
 
   /// Builds a field widget based on its type.
   static Widget _buildFieldByType(
-      CustomFormField field,
-      Map<String, TextEditingController> controllers,
-      Map<String, FocusNode> focusNodes,
-      CustomFormState formState,
-      Function(String, String) updateFieldState,
-      BuildContext context,
-      List<CustomFormField> formFields,
-      ) {
+    CustomFormField field,
+    Map<String, TextEditingController> controllers,
+    Map<String, FocusNode> focusNodes,
+    CustomFormState formState,
+    Function(String, String) updateFieldState,
+    BuildContext context,
+    List<CustomFormField> formFields,
+  ) {
     switch (field.type) {
       case FieldType.datetime:
         return buildDateTimeField(field, controllers, focusNodes, formState, updateFieldState, context);
@@ -96,14 +96,14 @@ class FormWidgets {
 
   /// Builds a text field.
   static Widget buildTextField(
-      CustomFormField field,
-      Map<String, TextEditingController> controllers,
-      Map<String, FocusNode> focusNodes,
-      CustomFormState formState,
-      Function(String, String) updateFieldState,
-      BuildContext context,
-      List<CustomFormField> formFields,
-      ) {
+    CustomFormField field,
+    Map<String, TextEditingController> controllers,
+    Map<String, FocusNode> focusNodes,
+    CustomFormState formState,
+    Function(String, String) updateFieldState,
+    BuildContext context,
+    List<CustomFormField> formFields,
+  ) {
     final isLastField = field == formFields.last;
     List<TextInputFormatter>? formatters;
 
@@ -157,19 +157,20 @@ class FormWidgets {
 
   /// Builds a select field (dropdown).
   static Widget buildSelectField(
-      CustomFormField field,
-      Map<String, TextEditingController> controllers,
-      CustomFormState formState,
-      Function(String, String) updateFieldState,
-      BuildContext context,
-      ) {
+    CustomFormField field,
+    Map<String, TextEditingController> controllers,
+    CustomFormState formState,
+    Function(String, String) updateFieldState,
+    BuildContext context,
+  ) {
     final currentValue = controllers[field.id]?.text;
     final items = field.options?.map<DropdownMenuItem<String>>((option) {
-      return DropdownMenuItem<String>(
-        value: option['id'].toString(),
-        child: Text(option['name']),
-      );
-    }).toList() ?? [];
+          return DropdownMenuItem<String>(
+            value: option['id'].toString(),
+            child: Text(option['name']),
+          );
+        }).toList() ??
+        [];
 
     // Ensure the current value is in the items list
     final isValidValue = items.any((item) => item.value == currentValue);
@@ -189,27 +190,25 @@ class FormWidgets {
       onChanged: field.disabled || field.readonly
           ? null
           : (value) {
-        if (value != null) {
-          controllers[field.id]?.text = value;
-          updateFieldState(field.id, value);
-        }
-      },
+              if (value != null) {
+                controllers[field.id]?.text = value;
+                updateFieldState(field.id, value);
+              }
+            },
     );
   }
 
   /// Builds a multi-select field.
   static Widget buildMultiSelectField(
-      CustomFormField field,
-      Map<String, TextEditingController> controllers,
-      CustomFormState formState,
-      Function(String, String) updateFieldState,
-      BuildContext context,
-      ) {
+    CustomFormField field,
+    Map<String, TextEditingController> controllers,
+    CustomFormState formState,
+    Function(String, String) updateFieldState,
+    BuildContext context,
+  ) {
     // Simple implementation that uses a comma-separated string
     // A more robust implementation might use a custom dialog or chips
-    final currentValues = controllers[field.id]?.text.split(',')
-        .where((s) => s.isNotEmpty)
-        .toList() ?? [];
+    final currentValues = controllers[field.id]?.text.split(',').where((s) => s.isNotEmpty).toList() ?? [];
 
     return FormField<List<String>>(
       initialValue: currentValues,
@@ -227,52 +226,58 @@ class FormWidgets {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  currentValues.isNotEmpty ? SizedBox(height: 8,) : Container(),
                   Wrap(
-                    spacing: 8.0,
-                    runSpacing: 4.0,
+                    spacing: 12.0,
+                    runSpacing: 8.0,
+                    alignment: WrapAlignment.start,
                     children: currentValues.map((value) {
                       final option = field.options?.firstWhere(
-                            (o) => o['id'].toString() == value,
+                        (o) => o['id'].toString() == value,
                         orElse: () => {'id': value, 'name': value},
                       );
                       final name = option?['name'] ?? value;
 
                       return Chip(
+                        labelPadding: EdgeInsets.all(0),
+                        padding: EdgeInsets.only(left: 8),
                         label: Text(name),
                         onDeleted: field.disabled || field.readonly
                             ? null
                             : () {
-                          final newValues = List<String>.from(currentValues)
-                            ..remove(value);
-                          controllers[field.id]?.text = newValues.join(',');
-                          updateFieldState(field.id, newValues.join(','));
-                        },
+                                final newValues = List<String>.from(currentValues)..remove(value);
+                                controllers[field.id]?.text = newValues.join(',');
+                                updateFieldState(field.id, newValues.join(','));
+                              },
                       );
                     }).toList(),
                   ),
                   if (!field.disabled && !field.readonly)
-                    DropdownButton<String>(
-                      padding: EdgeInsetsDirectional.symmetric(vertical: 0),
-                      hint: Text('Add ${field.label}'),
-                      underline: Container(),
-                      isExpanded: true,
-                      items: (field.options ?? [])
-                          .where((o) => !currentValues.contains(o['id'].toString()))
-                          .map<DropdownMenuItem<String>>((option) {
-                        return DropdownMenuItem<String>(
-                          value: option['id'].toString(),
-                          child: Text(option['name']),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          final newValues = List<String>.from(currentValues)
-                            ..add(value);
-                          controllers[field.id]?.text = newValues.join(',');
-                          updateFieldState(field.id, newValues.join(','));
-                        }
-                      },
+                    SizedBox(
+                      height: 32,
+                      child: DropdownButton<String>(
+                        focusColor: Colors.transparent,
+                        hint: Text('Add ${field.label}', style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.normal)),
+                        isExpanded: true,
+                        underline: Container(),
+                        borderRadius: BorderRadius.circular(8),
+                        itemHeight: 48,
+                        items: (field.options ?? []).where((o) => !currentValues.contains(o['id'].toString())).map<DropdownMenuItem<String>>((option) {
+                          return DropdownMenuItem<String>(
+                            value: option['id'].toString(),
+                            child: Text(option['name']),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            final newValues = List<String>.from(currentValues)..add(value);
+                            controllers[field.id]?.text = newValues.join(',');
+                            updateFieldState(field.id, newValues.join(','));
+                          }
+                        },
+                      ),
                     ),
                 ],
               ),
@@ -296,42 +301,42 @@ class FormWidgets {
 
   /// Builds a date and time picker field.
   static Widget buildDateTimeField(
-      CustomFormField field,
-      Map<String, TextEditingController> controllers,
-      Map<String, FocusNode> focusNodes,
-      CustomFormState formState,
-      Function(String, String) updateFieldState,
-      BuildContext context,
-      ) {
+    CustomFormField field,
+    Map<String, TextEditingController> controllers,
+    Map<String, FocusNode> focusNodes,
+    CustomFormState formState,
+    Function(String, String) updateFieldState,
+    BuildContext context,
+  ) {
     return GestureDetector(
       onTap: field.disabled || field.readonly
           ? null
           : () async {
-        DateTime? pickedDate = await showDatePicker(
-          context: context,
-          initialDate: DateTime.now(),
-          firstDate: DateTime(1900),
-          lastDate: DateTime(2100),
-        );
-        if (pickedDate != null) {
-          TimeOfDay? pickedTime = await showTimePicker(
-            context: context,
-            initialTime: TimeOfDay.now(),
-          );
-          if (pickedTime != null) {
-            DateTime dateTime = DateTime(
-              pickedDate.year,
-              pickedDate.month,
-              pickedDate.day,
-              pickedTime.hour,
-              pickedTime.minute,
-            );
-            String formattedDateTime = DateFormat(field.format ?? 'yyyy-MM-dd HH:mm').format(dateTime);
-            controllers[field.id]?.text = formattedDateTime;
-            updateFieldState(field.id, formattedDateTime);
-          }
-        }
-      },
+              DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime(1900),
+                lastDate: DateTime(2100),
+              );
+              if (pickedDate != null) {
+                TimeOfDay? pickedTime = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay.now(),
+                );
+                if (pickedTime != null) {
+                  DateTime dateTime = DateTime(
+                    pickedDate.year,
+                    pickedDate.month,
+                    pickedDate.day,
+                    pickedTime.hour,
+                    pickedTime.minute,
+                  );
+                  String formattedDateTime = DateFormat(field.format ?? 'yyyy-MM-dd HH:mm').format(dateTime);
+                  controllers[field.id]?.text = formattedDateTime;
+                  updateFieldState(field.id, formattedDateTime);
+                }
+              }
+            },
       child: AbsorbPointer(
         child: TextFormField(
           key: Key(field.id),
@@ -354,13 +359,13 @@ class FormWidgets {
 
   /// Builds a multi-line text field.
   static Widget buildTextAreaField(
-      CustomFormField field,
-      Map<String, TextEditingController> controllers,
-      Map<String, FocusNode> focusNodes,
-      CustomFormState formState,
-      Function(String, String) updateFieldState,
-      BuildContext context,
-      ) {
+    CustomFormField field,
+    Map<String, TextEditingController> controllers,
+    Map<String, FocusNode> focusNodes,
+    CustomFormState formState,
+    Function(String, String) updateFieldState,
+    BuildContext context,
+  ) {
     return TextFormField(
       key: Key(field.id),
       controller: controllers[field.id],
@@ -384,29 +389,29 @@ class FormWidgets {
 
   /// Builds a date picker field.
   static Widget buildDateField(
-      CustomFormField field,
-      Map<String, TextEditingController> controllers,
-      Map<String, FocusNode> focusNodes,
-      CustomFormState formState,
-      Function(String, String) updateFieldState,
-      BuildContext context,
-      ) {
+    CustomFormField field,
+    Map<String, TextEditingController> controllers,
+    Map<String, FocusNode> focusNodes,
+    CustomFormState formState,
+    Function(String, String) updateFieldState,
+    BuildContext context,
+  ) {
     return GestureDetector(
       onTap: field.disabled || field.readonly
           ? null
           : () async {
-        DateTime? pickedDate = await showDatePicker(
-          context: context,
-          initialDate: DateTime.now(),
-          firstDate: DateTime(1900),
-          lastDate: DateTime(2100),
-        );
-        if (pickedDate != null) {
-          String formattedDate = DateFormat(field.format ?? 'yyyy-MM-dd').format(pickedDate);
-          controllers[field.id]?.text = formattedDate;
-          updateFieldState(field.id, formattedDate);
-        }
-      },
+              DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime(1900),
+                lastDate: DateTime(2100),
+              );
+              if (pickedDate != null) {
+                String formattedDate = DateFormat(field.format ?? 'yyyy-MM-dd').format(pickedDate);
+                controllers[field.id]?.text = formattedDate;
+                updateFieldState(field.id, formattedDate);
+              }
+            },
       child: AbsorbPointer(
         child: TextFormField(
           key: Key(field.id),
@@ -429,9 +434,9 @@ class FormWidgets {
 
   /// Builds a spacer or section divider.
   static Widget buildSpacerField(
-      CustomFormField field,
-      BuildContext context,
-      ) {
+    CustomFormField field,
+    BuildContext context,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.start,
@@ -440,9 +445,9 @@ class FormWidgets {
         field.label.isEmpty
             ? SizedBox()
             : Text(
-          field.label,
-          style: FormStyles.labelStyle(context),
-        ),
+                field.label,
+                style: FormStyles.labelStyle(context),
+              ),
         field.label.isEmpty ? SizedBox() : SizedBox(height: 4),
         Container(
           height: 1,
@@ -457,21 +462,21 @@ class FormWidgets {
 
   /// Builds a boolean toggle field.
   static Widget buildBooleanField(
-      CustomFormField field,
-      Map<String, TextEditingController> controllers,
-      CustomFormState formState,
-      Function(String, String) updateFieldState,
-      BuildContext context,
-      ) {
+    CustomFormField field,
+    Map<String, TextEditingController> controllers,
+    CustomFormState formState,
+    Function(String, String) updateFieldState,
+    BuildContext context,
+  ) {
     bool currentValue = controllers[field.id]?.text.toLowerCase() == 'true';
 
     return GestureDetector(
       onTap: field.disabled || field.readonly
           ? null
           : () {
-        controllers[field.id]?.text = (!currentValue).toString();
-        updateFieldState(field.id, (!currentValue).toString());
-      },
+              controllers[field.id]?.text = (!currentValue).toString();
+              updateFieldState(field.id, (!currentValue).toString());
+            },
       child: Container(
         decoration: BoxDecoration(
           border: Border.all(
@@ -526,13 +531,13 @@ class FormWidgets {
 
   /// Builds an address field (composite field).
   static Widget buildAddressField(
-      CustomFormField field,
-      Map<String, TextEditingController> controllers,
-      Map<String, FocusNode> focusNodes,
-      CustomFormState formState,
-      Function(String, String) updateFieldState,
-      BuildContext context,
-      ) {
+    CustomFormField field,
+    Map<String, TextEditingController> controllers,
+    Map<String, FocusNode> focusNodes,
+    CustomFormState formState,
+    Function(String, String) updateFieldState,
+    BuildContext context,
+  ) {
     // For simplicity, just rendering a text field
     // A more robust implementation would include multiple fields
     return buildTextField(field, controllers, focusNodes, formState, updateFieldState, context, [field]);
