@@ -196,7 +196,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
         onSubmit: _handleSubmit,
         onReset: _handleReset,
         onValidate: FormValidator.validateField,
-        showResetButton: true,
+        showResetButton: false,
         submitButtonText: 'Submit Form',
         resetButtonText: 'Clear Form',
         isLoading: _isLoading, // Pass the loading state

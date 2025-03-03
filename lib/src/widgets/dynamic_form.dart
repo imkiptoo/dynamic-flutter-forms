@@ -527,7 +527,7 @@ class _DynamicFormState extends State<DynamicForm> {
                             ),
                           ),
                         ),
-                      SizedBox(width: 16),
+                      if(widget.showResetButton) SizedBox(width: 16),
                       Expanded(
                         child: widget.isLoading
                         // Shimmer for submit button during loading
