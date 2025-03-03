@@ -1,3 +1,4 @@
+import 'package:dynamic_flutter_forms/src/utils/form_validators.dart';
 import 'package:flutter/material.dart';
 import 'package:dynamic_flutter_forms/dynamic_forms.dart';
 
@@ -21,7 +22,7 @@ class MyApp extends StatelessWidget {
             fieldPadding: const EdgeInsets.only(bottom: 16.0),
             formPadding: const EdgeInsets.only(left: 0, right: 16),
             buttonPadding: const EdgeInsets.symmetric(vertical: 16.0),
-            requiredColor: Colors.red,
+            requiredColor: Colors.red.shade700,
             modifiedColor: Colors.blue,
             validColor: Colors.green,
             errorColor: Colors.red,
@@ -45,7 +46,7 @@ class ExampleFormScreen extends StatefulWidget {
 
 class _ExampleFormScreenState extends State<ExampleFormScreen> {
   final List<CustomFormField> _formFields = [
-    /*CustomFormField(
+    CustomFormField(
       id: 'id',
       label: 'ID',
       type: FieldType.text,
@@ -55,7 +56,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
       disabled: true,
       readonly: true,
       insert: false,
-    ),*/
+    ),
     CustomFormField(
       id: 'name',
       label: 'Name',
@@ -73,14 +74,17 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
         Validator(name: 'email', type: 'email'),
       ],
     ),
-    CustomFormField(
+    /*CustomFormField(
       id: 'mobile_phone',
       label: 'Mobile Phone',
       type: FieldType.tel,
       placeholder: 'Enter Mobile Phone',
       required: true,
-    ),
-    /*CustomFormField(
+      validators: [
+        Validator(name: 'phone', type: 'phone', message: "Invalid phone number. Enter a 10 digit phone number"),
+      ]
+    ),*/
+    CustomFormField(
       id: 'pm_notifications',
       label: 'PM Notifications',
       type: FieldType.boolean,
@@ -160,7 +164,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
         {'id': '3', 'name': 'Manager'},
         {'id': '4', 'name': 'Viewer'},
       ],
-    ),*/
+    ),
   ];
 
   @override
@@ -174,7 +178,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
         formFields: _formFields,
         onSubmit: _handleSubmit,
         onReset: _handleReset,
-        onValidate: _validateField,
+        onValidate: FormValidator.validateField,
         showResetButton: true,
         submitButtonText: 'Submit Form',
         resetButtonText: 'Clear Form',
@@ -184,16 +188,18 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
 
   Future<void> _handleSubmit(Map<String, dynamic> formData) async {
     // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(seconds: 3));
 
     debugPrint('Form data: $formData');
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Form submitted successfully!'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    if(mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Form submitted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   void _handleReset() {
@@ -205,40 +211,5 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
         backgroundColor: Colors.blue,
       ),
     );
-  }
-
-  String? _validateField(CustomFormField field, String? value) {
-    if (field.required && (value == null || value.isEmpty)) {
-      return 'The ${field.label} field is required';
-    }
-
-    // Example of custom validation for specific fields
-    if (field.id == 'mobile_phone' && value != null) {
-      if (value.length < 10) {
-        return 'Phone number must be at least 10 digits';
-      }
-    }
-
-    // Default validators
-    for (var validator in field.validators) {
-      switch (validator.type) {
-        case 'email':
-          final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
-          if (value != null && !emailRegex.hasMatch(value)) {
-            return validator.message ?? 'Invalid email format';
-          }
-          break;
-        case 'pattern':
-          if (validator.value != null && value != null) {
-            final pattern = RegExp(validator.value!);
-            if (!pattern.hasMatch(value)) {
-              return validator.message ?? 'Invalid format';
-            }
-          }
-          break;
-      }
-    }
-
-    return null;
   }
 }

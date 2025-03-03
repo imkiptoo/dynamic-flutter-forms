@@ -48,7 +48,6 @@ class DynamicFormController {
     }
   }
 
-
   /// Submits the form programmatically.
   Future<bool> submit() async {
     if (_formKey.currentState!.validate()) {
@@ -105,7 +104,7 @@ class DynamicFormController {
   /// Validates a field.
   String? validateField(CustomFormField field, String? value) {
     if (_onValidate != null) {
-      return _onValidate!(field, value);
+      return _onValidate(field, value);
     }
 
     if (field.required && (value == null || value.isEmpty)) {
@@ -137,10 +136,7 @@ class DynamicFormController {
   void updateFieldState(String fieldId, String value) {
     final field = _formState.fields[fieldId];
     if (field != null) {
-      final customField = _formFields.firstWhere(
-              (f) => f.id == fieldId,
-          orElse: () => throw Exception('Field not found: $fieldId')
-      );
+      final customField = _formFields.firstWhere((f) => f.id == fieldId, orElse: () => throw Exception('Field not found: $fieldId'));
 
       final error = validateField(customField, value);
 
@@ -277,24 +273,29 @@ class _DynamicFormState extends State<DynamicForm> {
     }
 
     return await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Reset Form?'),
-            content: Text('Are you sure you want to reset all fields to their initial values?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
-                child: Text('Reset'),
-              ),
-            ],
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Reset Form?'),
+        content: Text('Are you sure you want to reset all fields to their initial values?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel'),
           ),
-        ) ??
-        false;
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            child: Text('Reset'),
+          ),
+        ],
+      ),
+    ).then((value) {
+      // Remove focus after the dialog is closed
+      if (mounted) {
+        FocusScope.of(context).unfocus();
+      }
+      return value ?? false;
+    });
   }
 
   void _resetForm() {
@@ -308,6 +309,14 @@ class _DynamicFormState extends State<DynamicForm> {
   }
 
   Future<void> _submitForm() async {
+    FocusScope.of(context).unfocus();
+
+    for (var node in _controller._focusNodes.values) {
+      if(node.hasFocus) {
+        node.unfocus();
+      }
+    }
+
     final formState = _controller.formState;
 
     // Mark all fields as ready for validation
@@ -369,28 +378,35 @@ class _DynamicFormState extends State<DynamicForm> {
   }
 
   Future<bool> _confirmSubmit() async {
+    FocusScope.of(context).unfocus();
+
     if (!widget.showConfirmationDialogs) {
       return true;
     }
 
     return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Submit Form?'),
-            content: const Text('Are you sure you want to submit the form?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Submit'),
-              ),
-            ],
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Submit Form?'),
+        content: const Text('Are you sure you want to submit the form?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
-        ) ??
-        false;
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    ).then((value) {
+      // Remove focus after the dialog is closed
+      if (mounted) {
+        FocusScope.of(context).unfocus();
+      }
+      return value ?? false;
+    });
   }
 
   @override
@@ -435,49 +451,73 @@ class _DynamicFormState extends State<DynamicForm> {
                     children: [
                       if (widget.showResetButton)
                         Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 16),
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                if (await _confirmReset()) {
-                                  _resetForm();
-                                }
-                              },
-                              style: OutlinedButton.styleFrom(
-                                padding: formTheme.buttonPadding,
-                                backgroundColor: Colors.red.shade50,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(formTheme.borderRadius),
-                                  side: BorderSide(color: Colors.red)
+                          child: InkWell(
+                            onTap: () async {
+                              if (await _confirmReset()) {
+                                _resetForm();
+                              }
+                            },
+                            radius: formTheme.borderRadius,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.red.shade700,
+                                  width: 1.25,
                                 ),
-                                shadowColor: Colors.transparent,
+                                borderRadius: BorderRadius.circular(formTheme.borderRadius),
+                                color: Colors.red.shade50,
                               ),
+                              height: 40,
                               child: Text(
-                                widget.resetButtonText,
-                                style: TextStyle(fontSize: 16, color: Colors.red.shade700),
+                                'Clear Form',
+                                style: TextStyle(
+                                  color: Colors.red.shade700,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                           ),
                         ),
+                      SizedBox(width: 16),
                       Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isSubmitting ? null : _submitForm,
-                          style: FormStyles.buttonStyle(context),
-                          child: _isSubmitting
-                              ? SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Theme.of(context).colorScheme.onPrimary,
+                        child: InkWell(
+                          onTap: _isSubmitting ? null : _submitForm,
+                          radius: formTheme.borderRadius,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: _isSubmitting ? Colors.black38 : Colors.green.shade700,
+                                width: 1.25,
+                              ),
+                              borderRadius: BorderRadius.circular(formTheme.borderRadius),
+                              color: _isSubmitting ? Colors.black12 : Colors.green.shade700,
+                            ),
+                            height: 40,
+                            child: _isSubmitting
+                                ? SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        _isSubmitting ? Colors.black38 : Theme.of(context).colorScheme.onPrimary,
+                                      ),
+                                    ),
+                                  )
+                                : Text(
+                                    'Submit Form',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                )
-                              : Text(
-                                  widget.submitButtonText,
-                                  style: TextStyle(fontSize: 16),
-                                ),
+                          ),
                         ),
                       ),
                     ],

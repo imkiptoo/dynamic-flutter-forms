@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -228,10 +230,10 @@ class FormWidgets {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  currentValues.isNotEmpty ? SizedBox(height: 8,) : Container(),
+                  currentValues.isNotEmpty ? SizedBox(height: Platform.isAndroid || Platform.isIOS ? 0 : 8,) : Container(),
                   Wrap(
-                    spacing: 12.0,
-                    runSpacing: 8.0,
+                    spacing: Platform.isAndroid || Platform.isIOS ? 8 : 12.0,
+                    runSpacing: Platform.isAndroid || Platform.isIOS ? 0 : 8.0,
                     alignment: WrapAlignment.start,
                     children: currentValues.map((value) {
                       final option = field.options?.firstWhere(
