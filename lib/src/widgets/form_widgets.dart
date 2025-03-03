@@ -209,6 +209,14 @@ class FormWidgets {
       formatters = _formattersCache[formatterCacheKey];
     }
 
+    // MODIFIED: Add listener to controller to ensure state updates
+    // when the controller changes from external sources
+    if (!controller.hasListeners) {
+      controller.addListener(() {
+        updateFieldState(field.id, controller.text);
+      });
+    }
+
     return TextFormField(
       key: Key(field.id),
       controller: controller,
@@ -226,7 +234,10 @@ class FormWidgets {
         fieldId: field.id,
         formState: formState,
       ),
-      onChanged: (value) => updateFieldState(field.id, value),
+      // MODIFIED: Update field state immediately on change
+      onChanged: (value) {
+        updateFieldState(field.id, value);
+      },
       onFieldSubmitted: (value) {
         if (!isLastField) {
           final nextIndex = formFields.indexOf(field) + 1;

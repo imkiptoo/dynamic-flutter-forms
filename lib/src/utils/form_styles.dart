@@ -88,7 +88,8 @@ class FormStyles {
         fillColor = theme.validColor.withOpacity(0.1);
         borderColor = theme.validColor;
       } else if (field.isModified) {
-        fillColor = theme.modifiedColor.withOpacity(0.1);
+        // MODIFIED: Make modified state more noticeable
+        fillColor = theme.modifiedColor.withOpacity(0.15); // Slightly more opaque
         borderColor = theme.modifiedColor;
       }
     }
@@ -103,6 +104,14 @@ class FormStyles {
         borderRadius: BorderRadius.circular(theme.borderRadius),
         borderSide: BorderSide(
           color: borderColor,
+          width: 1.5, // MODIFIED: Slightly thicker border for better visibility
+        ),
+      ),
+      focusedBorder: OutlineInputBorder( // ADDED: Explicit focused border
+        borderRadius: BorderRadius.circular(theme.borderRadius),
+        borderSide: BorderSide(
+          color: borderColor,
+          width: 2.0, // Thicker when focused
         ),
       ),
       contentPadding: EdgeInsets.symmetric(
@@ -111,7 +120,7 @@ class FormStyles {
       ),
       floatingLabelBehavior: floatingLabelBehavior,
       suffixIcon: suffixIcon,
-      filled: true,
+      filled: fillColor != null, // MODIFIED: Only fill if we have a color
       fillColor: errorText != null ? theme.errorColor.withOpacity(0.1) : fillColor,
       errorText: errorText,
     );

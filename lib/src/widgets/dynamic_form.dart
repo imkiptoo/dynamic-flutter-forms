@@ -17,6 +17,7 @@ typedef OnFormReset = void Function();
 typedef OnFormValidate = String? Function(CustomFormField field, String? value);
 
 /// A controller for dynamic forms.
+/// A controller for dynamic forms.
 class DynamicFormController {
   final _formKey = GlobalKey<FormState>();
   final Map<String, TextEditingController> _controllers = {};
@@ -79,7 +80,6 @@ class DynamicFormController {
     _isValidNotifier.value = true;
   }
 
-  /// Lazy-loads controller for a field when needed
   /// Lazy-loads controller for a field when needed
   TextEditingController _getOrCreateController(String fieldId) {
     if (!_controllers.containsKey(fieldId)) {
@@ -288,6 +288,7 @@ class DynamicFormController {
         // Store previous state to check if an update is needed
         final oldValid = field.valid;
         final oldError = field.error;
+        final wasModified = field.isModified;
 
         // Update field state
         field.value = value;
@@ -296,11 +297,10 @@ class DynamicFormController {
         field.valid = error == null;
         field.error = error;
 
-        // Only update notifier if something important changed
-        if (oldValid != field.valid || oldError != field.error || isModified) {
-          if (_fieldStateNotifiers.containsKey(fieldId)) {
-            _fieldStateNotifiers[fieldId]!.value = field;
-          }
+        // MODIFIED: Always update notifier when value changes
+        // This ensures immediate UI updates
+        if (_fieldStateNotifiers.containsKey(fieldId)) {
+          _fieldStateNotifiers[fieldId]!.value = field.copyWith();
         }
 
         // Check overall form validity
