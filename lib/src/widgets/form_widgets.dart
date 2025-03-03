@@ -25,8 +25,8 @@ class FormWidgets {
       BuildContext context,
       List<CustomFormField> formFields,
       ) {
-    return Container(
-      //padding: FormStyles.of(context).fieldPadding,
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 0, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -183,7 +183,7 @@ class FormWidgets {
         fieldId: field.id,
         formState: formState,
       ),
-      style: TextStyle(fontSize: 15.6, color: Colors.black),
+      style: TextStyle(fontSize: 16, color: Colors.black),
       borderRadius: BorderRadius.circular(8.0),
       items: items,
       onChanged: field.disabled || field.readonly
@@ -253,6 +253,7 @@ class FormWidgets {
                   ),
                   if (!field.disabled && !field.readonly)
                     DropdownButton<String>(
+                      padding: EdgeInsetsDirectional.symmetric(vertical: 0),
                       hint: Text('Add ${field.label}'),
                       underline: Container(),
                       isExpanded: true,
@@ -479,7 +480,7 @@ class FormWidgets {
           borderRadius: BorderRadius.circular(8.0),
           color: FormStyles.getFieldColor(context, field.id, formState),
         ),
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
