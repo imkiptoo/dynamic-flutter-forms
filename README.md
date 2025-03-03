@@ -11,6 +11,11 @@ A highly configurable dynamic forms library for Flutter that allows you to creat
 - Easy integration with Flutter apps
 - Support for various input types (text, email, date, boolean, select, etc.)
 
+## Demo
+
+[![](https://markdown-videos-api.jorgenkh.no/youtube/MZD1zSw_cwA)](https://youtu.be/MZD1zSw_cwA)
+
+
 ## Installation
 
 Add this package to your pubspec.yaml:

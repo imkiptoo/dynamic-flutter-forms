@@ -37,7 +37,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
       required: true,
       initialValue: false,
     ),
-    /*CustomFormField(
+    CustomFormField(
       id: 'email',
       label: 'Email',
       type: FieldType.email,
@@ -46,13 +46,6 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
       validators: [
         Validator(name: 'email', type: 'email'),
       ],
-    ),
-    CustomFormField(
-      id: 'pm_notifications',
-      label: 'PM Notifications',
-      type: FieldType.boolean,
-      placeholder: '',
-      required: true,
     ),
     CustomFormField(
       id: 'type_id',
@@ -110,7 +103,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
       id: 'spacer-1',
       label: '',
       type: FieldType.spacer,
-    ),*/
+    ),
   ];
 
   bool _isLoading = false; // For data loading with shimmer effect
@@ -214,7 +207,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
         onSubmit: _handleSubmit,
         onReset: _handleReset,
         onValidate: FormValidator.validateField,
-        showResetButton: false,
+        showResetButton: true,
         submitButtonText: 'Submit Form',
         resetButtonText: 'Clear Form',
         isLoading: _isLoading, // Pass the loading state for shimmer effect
