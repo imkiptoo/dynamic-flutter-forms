@@ -35,16 +35,19 @@ class DynamicFormController {
 
   void _initializeForm() {
     for (var field in _formFields) {
-      _controllers[field.id] = TextEditingController(text: field.initialValue?.toString() ?? '');
+      String initialValue = field.initialValue?.toString() ?? '';
+      _controllers[field.id] = TextEditingController(text: initialValue);
       _focusNodes[field.id] = FocusNode();
       _formState.fields[field.id] = CustomFormFieldState(
-        value: field.initialValue?.toString() ?? '',
+        value: initialValue,
+        initialValue: initialValue,
         initial: true,
         valid: true,
         submitted: false,
       );
     }
   }
+
 
   /// Submits the form programmatically.
   Future<bool> submit() async {
@@ -134,11 +137,18 @@ class DynamicFormController {
   void updateFieldState(String fieldId, String value) {
     final field = _formState.fields[fieldId];
     if (field != null) {
-      final customField = _formFields.firstWhere((f) => f.id == fieldId, orElse: () => throw Exception('Field not found: $fieldId'));
+      final customField = _formFields.firstWhere(
+              (f) => f.id == fieldId,
+          orElse: () => throw Exception('Field not found: $fieldId')
+      );
+
       final error = validateField(customField, value);
 
+      // Check if the value is reverting back to the initial value
+      bool isRevertingToInitial = (value == field.initialValue);
+
       field.value = value;
-      field.initial = false;
+      field.initial = isRevertingToInitial; // Set back to initial state if values match
       field.submitted = false;
       field.valid = error == null;
       field.error = error;
@@ -300,7 +310,7 @@ class _DynamicFormState extends State<DynamicForm> {
   Future<void> _submitForm() async {
     final formState = _controller.formState;
 
-    // Mark all fields as submitted for validation
+    // Mark all fields as ready for validation
     setState(() {
       for (var fieldId in formState.fields.keys) {
         final field = formState.fields[fieldId]!;
@@ -310,34 +320,48 @@ class _DynamicFormState extends State<DynamicForm> {
           final error = _controller.validateField(customField, controller.text);
           field.valid = error == null;
           field.error = error;
-          field.submitted = true;
+          // Don't mark as submitted yet - we'll do that after successful submission
         }
       }
     });
 
+    // If all fields are valid, proceed
     if (formState.isValid) {
+      // Show confirmation dialog if needed
       if (widget.showConfirmationDialogs && !await _confirmSubmit()) {
         return;
       }
 
+      // Set submitting state
       setState(() {
         _isSubmitting = true;
         formState.isSubmitting = true;
+        formState.isSubmitted = false; // Reset in case of previous submission
       });
 
       try {
+        // Call onSubmit callback
         if (widget.onSubmit != null) {
           await widget.onSubmit!(_controller.formData);
         }
 
+        // Mark form as successfully submitted and update all fields
         setState(() {
           _isSubmitting = false;
           formState.isSubmitting = false;
+          formState.isSubmitted = true; // Mark as successfully submitted
+
+          // Now mark all fields as submitted
+          for (var fieldId in formState.fields.keys) {
+            final field = formState.fields[fieldId]!;
+            field.submitted = true;
+          }
         });
       } catch (e) {
         setState(() {
           _isSubmitting = false;
           formState.isSubmitting = false;
+          formState.isSubmitted = false;
           formState.globalError = 'Submission failed: ${e.toString()}';
         });
       }

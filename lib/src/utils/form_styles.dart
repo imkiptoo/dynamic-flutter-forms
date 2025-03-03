@@ -108,10 +108,6 @@ class FormStyles {
   }
 
   /// Gets the background color for a field based on its state.
-  ///
-  /// [context] is the build context.
-  /// [fieldId] is the ID of the field.
-  /// [formState] is the current state of the form.
   static Color getFieldColor(BuildContext context, String fieldId, CustomFormState formState) {
     final theme = DynamicFormTheme.of(context);
     final field = formState.fields[fieldId];
@@ -120,24 +116,26 @@ class FormStyles {
       return Colors.transparent;
     }
 
-    if (field.initial) {
-      return Colors.transparent;
+    // Show error color if invalid
+    if (!field.valid) {
+      return theme.errorColor.withOpacity(0.1);
     }
 
-    if (!field.submitted) {
+    // Show modified color if changed from initial and not yet successfully submitted
+    if (field.isModified && !formState.isSubmitted) {
       return theme.modifiedColor.withOpacity(0.1);
     }
 
-    return field.valid
-        ? theme.validColor.withOpacity(0.1)
-        : theme.errorColor.withOpacity(0.1);
+    // Only show success color after the entire form has been successfully submitted
+    if (field.valid && formState.isSubmitted) {
+      return theme.validColor.withOpacity(0.1);
+    }
+
+    // Default background is transparent
+    return Colors.transparent;
   }
 
   /// Gets the border color for a field based on its state.
-  ///
-  /// [context] is the build context.
-  /// [fieldId] is the ID of the field.
-  /// [formState] is the current state of the form.
   static Color getBorderColor(BuildContext context, String fieldId, CustomFormState formState) {
     final theme = DynamicFormTheme.of(context);
     final field = formState.fields[fieldId];
@@ -146,14 +144,22 @@ class FormStyles {
       return theme.disabledColor;
     }
 
-    if (field.initial) {
-      return theme.disabledColor;
+    // Show error color if invalid
+    if (!field.valid) {
+      return theme.errorColor;
     }
 
-    if (!field.submitted) {
+    // Show modified color if changed from initial and not yet successfully submitted
+    if (field.isModified && !formState.isSubmitted) {
       return theme.modifiedColor;
     }
 
-    return field.valid ? theme.validColor : theme.errorColor;
+    // Only show success color after the entire form has been successfully submitted
+    if (field.valid && formState.isSubmitted) {
+      return theme.validColor;
+    }
+
+    // Default border color is gray
+    return theme.disabledColor;
   }
 }

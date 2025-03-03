@@ -3,6 +3,9 @@ class CustomFormFieldState {
   /// The current value of the field as a string.
   String value;
 
+  /// The initial value when the form was created
+  final String initialValue;
+
   /// Whether the field is in its initial state (not modified).
   bool initial;
 
@@ -18,20 +21,22 @@ class CustomFormFieldState {
   /// Creates a new [CustomFormFieldState] instance.
   ///
   /// [value] is the current value of the field.
+  /// [initialValue] is the starting value of the field.
   /// [initial] indicates whether the field is in its initial state.
   /// [valid] indicates whether the field's current value is valid.
   /// [submitted] indicates whether the field has been submitted.
   /// [error] is the error message if validation failed.
   CustomFormFieldState({
     this.value = '',
+    String? initialValue,
     this.initial = true,
     this.valid = true,
     this.submitted = false,
     this.error,
-  });
+  }) : initialValue = initialValue ?? value;
 
-  /// Whether the field has been modified from its initial state.
-  bool get isModified => !initial;
+  /// Whether the field has been truly modified from its initial value.
+  bool get isModified => value != initialValue;
 
   /// Creates a copy of this [CustomFormFieldState] with the given fields replaced.
   CustomFormFieldState copyWith({
@@ -43,6 +48,7 @@ class CustomFormFieldState {
   }) {
     return CustomFormFieldState(
       value: value ?? this.value,
+      initialValue: initialValue, // Keep original initialValue
       initial: initial ?? this.initial,
       valid: valid ?? this.valid,
       submitted: submitted ?? this.submitted,
@@ -54,6 +60,7 @@ class CustomFormFieldState {
   Map<String, dynamic> toJson() {
     return {
       'value': value,
+      'initialValue': initialValue,
       'initial': initial,
       'valid': valid,
       'submitted': submitted,
@@ -65,6 +72,7 @@ class CustomFormFieldState {
   factory CustomFormFieldState.fromJson(Map<String, dynamic> json) {
     return CustomFormFieldState(
       value: json['value'] ?? '',
+      initialValue: json['initialValue'],
       initial: json['initial'] ?? true,
       valid: json['valid'] ?? true,
       submitted: json['submitted'] ?? false,
@@ -81,6 +89,9 @@ class CustomFormState {
   /// Whether the form is currently being submitted.
   bool isSubmitting;
 
+  /// Whether the form has been successfully submitted.
+  bool isSubmitted;
+
   /// Global error message for the form.
   String? globalError;
 
@@ -88,10 +99,12 @@ class CustomFormState {
   ///
   /// [fields] is a map of field IDs to their respective states.
   /// [isSubmitting] indicates whether the form is currently being submitted.
+  /// [isSubmitted] indicates whether the form has been successfully submitted.
   /// [globalError] is a global error message for the form.
   CustomFormState({
     Map<String, CustomFormFieldState>? fields,
     this.isSubmitting = false,
+    this.isSubmitted = false,
     this.globalError,
   }) : fields = fields ?? {};
 

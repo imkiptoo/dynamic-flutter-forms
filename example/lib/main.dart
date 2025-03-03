@@ -45,7 +45,7 @@ class ExampleFormScreen extends StatefulWidget {
 
 class _ExampleFormScreenState extends State<ExampleFormScreen> {
   final List<CustomFormField> _formFields = [
-    CustomFormField(
+    /*CustomFormField(
       id: 'id',
       label: 'ID',
       type: FieldType.text,
@@ -55,7 +55,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
       disabled: true,
       readonly: true,
       insert: false,
-    ),
+    ),*/
     CustomFormField(
       id: 'name',
       label: 'Name',
@@ -64,6 +64,23 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
       required: true,
     ),
     CustomFormField(
+      id: 'email',
+      label: 'Email',
+      type: FieldType.email,
+      placeholder: 'Enter Email',
+      required: true,
+      validators: [
+        Validator(name: 'email', type: 'email'),
+      ],
+    ),
+    CustomFormField(
+      id: 'mobile_phone',
+      label: 'Mobile Phone',
+      type: FieldType.tel,
+      placeholder: 'Enter Mobile Phone',
+      required: true,
+    ),
+    /*CustomFormField(
       id: 'pm_notifications',
       label: 'PM Notifications',
       type: FieldType.boolean,
@@ -143,7 +160,7 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
         {'id': '3', 'name': 'Manager'},
         {'id': '4', 'name': 'Viewer'},
       ],
-    ),
+    ),*/
   ];
 
   @override
