@@ -141,13 +141,13 @@ class _ExampleFormScreenState extends State<ExampleFormScreen> {
 
       // Batch all form updates instead of updating each field individually
       // to trigger fewer rebuilds
-      _batchUpdateFormFields({
+      /*_batchUpdateFormFields({
         'id': '12345',
         'name': 'John Doe',
         'email': 'john.doe@example.com',
         'pm_notifications': 'true',
         'type_id': '1',
-      });
+      });*/
     } catch (e) {
       debugPrint('Error loading data: $e');
 

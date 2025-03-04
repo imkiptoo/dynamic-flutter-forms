@@ -104,14 +104,14 @@ class FormStyles {
         borderRadius: BorderRadius.circular(theme.borderRadius),
         borderSide: BorderSide(
           color: borderColor,
-          width: 1.5, // MODIFIED: Slightly thicker border for better visibility
+          width: 1, // MODIFIED: Slightly thicker border for better visibility
         ),
       ),
       focusedBorder: OutlineInputBorder( // ADDED: Explicit focused border
         borderRadius: BorderRadius.circular(theme.borderRadius),
         borderSide: BorderSide(
           color: borderColor,
-          width: 2.0, // Thicker when focused
+          width: 1.5, // Thicker when focused
         ),
       ),
       contentPadding: EdgeInsets.symmetric(

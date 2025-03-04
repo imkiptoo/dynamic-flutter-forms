@@ -484,6 +484,8 @@ class _DynamicFormState extends State<DynamicForm> {
     }
   }
 
+  // 1. First, modify the _submitForm method in _DynamicFormState class:
+
   Future<void> _submitForm() async {
     FocusScope.of(context).unfocus();
 
@@ -493,10 +495,117 @@ class _DynamicFormState extends State<DynamicForm> {
       }
     }
 
+    // Force validation of ALL fields before showing dialog
     final formState = _controller.formState;
-
-    // Validate only fields that need validation (optimization)
+    String? firstInvalidFieldId;
     bool isValid = true;
+
+    // Validate ALL fields, not just modified ones
+    for (var field in widget.formFields) {
+      // Skip non-input fields like spacers
+      if (field.type == FieldType.spacer) continue;
+
+      final fieldId = field.id;
+      final controller = _controller.controllers[fieldId];
+
+      if (controller != null) {
+        final error = _controller.validateField(field, controller.text);
+        final currentField = formState.fields[fieldId];
+
+        if (currentField != null) {
+          currentField.valid = error == null;
+          currentField.error = error;
+
+          if (error != null) {
+            isValid = false;
+            if (firstInvalidFieldId == null) {
+              firstInvalidFieldId = fieldId;
+            }
+          }
+
+          // Update field state notifier
+          if (_controller.fieldStateNotifiers.containsKey(fieldId)) {
+            _controller.fieldStateNotifiers[fieldId]!.value = currentField;
+          }
+        }
+      }
+    }
+
+    // If there are validation errors, focus the first invalid field
+    if (!isValid && firstInvalidFieldId != null) {
+      final focusNode = _controller.focusNodes[firstInvalidFieldId];
+      if (focusNode != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          focusNode.requestFocus();
+        });
+      }
+
+      // Show validation error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please fix the validation errors before submitting.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+
+      return; // Stop submission if validation fails
+    }
+
+    // Only show confirmation dialog if form is valid
+    if (widget.showConfirmationDialogs && !await _confirmSubmit()) {
+      return;
+    }
+
+    // Set submitting state
+    setState(() {
+      _isSubmitting = true;
+      formState.isSubmitting = true;
+      formState.isSubmitted = false; // Reset in case of previous submission
+    });
+
+    try {
+      // Call onSubmit callback
+      if (widget.onSubmit != null) {
+        await widget.onSubmit!(_controller.formData);
+      }
+
+      // Mark form as successfully submitted and update all fields
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          formState.isSubmitting = false;
+          formState.isSubmitted = true; // Mark as successfully submitted
+
+          // Now mark all fields as submitted
+          for (var fieldId in formState.fields.keys) {
+            final field = formState.fields[fieldId]!;
+            field.submitted = true;
+
+            // Update field state notifier
+            if (_controller.fieldStateNotifiers.containsKey(fieldId)) {
+              _controller.fieldStateNotifiers[fieldId]!.value = field;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          formState.isSubmitting = false;
+          formState.isSubmitted = false;
+          formState.globalError = 'Submission failed: ${e.toString()}';
+          _controller.globalErrorNotifier.value = formState.globalError;
+        });
+      }
+    }
+  }
+
+  bool _validateForm() {
+    final formState = _controller.formState;
+    bool isValid = true;
+    String? firstInvalidFieldId;
+
     for (var fieldId in formState.fieldsNeedingValidation) {
       final field = formState.fields[fieldId]!;
       final controller = _controller.controllers[fieldId];
@@ -505,6 +614,10 @@ class _DynamicFormState extends State<DynamicForm> {
         final error = _controller.validateField(customField, controller.text);
         field.valid = error == null;
         field.error = error;
+
+        if (!field.valid && firstInvalidFieldId == null) {
+          firstInvalidFieldId = fieldId;
+        }
 
         if (!field.valid) isValid = false;
 
@@ -515,55 +628,60 @@ class _DynamicFormState extends State<DynamicForm> {
       }
     }
 
-    // If all fields are valid, proceed
-    if (isValid) {
-      // Show confirmation dialog if needed
-      if (widget.showConfirmationDialogs && !await _confirmSubmit()) {
-        return;
+    // If any field is invalid, focus on the first invalid field
+    if (!isValid && firstInvalidFieldId != null) {
+      final focusNode = _controller.focusNodes[firstInvalidFieldId];
+      if (focusNode != null) {
+        focusNode.requestFocus();
+      }
+    }
+
+    return isValid;
+  }
+
+  Future<void> _submitFormData() async {
+    final formState = _controller.formState;
+
+    setState(() {
+      _isSubmitting = true;
+      formState.isSubmitting = true;
+      formState.isSubmitted = false; // Reset in case of previous submission
+    });
+
+    try {
+      // Call onSubmit callback
+      if (widget.onSubmit != null) {
+        await widget.onSubmit!(_controller.formData);
       }
 
-      // Set submitting state
-      setState(() {
-        _isSubmitting = true;
-        formState.isSubmitting = true;
-        formState.isSubmitted = false; // Reset in case of previous submission
-      });
+      // Mark form as successfully submitted and update all fields
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          formState.isSubmitting = false;
+          formState.isSubmitted = true; // Mark as successfully submitted
 
-      try {
-        // Call onSubmit callback
-        if (widget.onSubmit != null) {
-          await widget.onSubmit!(_controller.formData);
-        }
+          // Now mark all fields as submitted
+          for (var fieldId in formState.fields.keys) {
+            final field = formState.fields[fieldId]!;
+            field.submitted = true;
 
-        // Mark form as successfully submitted and update all fields
-        if (mounted) {
-          setState(() {
-            _isSubmitting = false;
-            formState.isSubmitting = false;
-            formState.isSubmitted = true; // Mark as successfully submitted
-
-            // Now mark all fields as submitted
-            for (var fieldId in formState.fields.keys) {
-              final field = formState.fields[fieldId]!;
-              field.submitted = true;
-
-              // Update field state notifier
-              if (_controller.fieldStateNotifiers.containsKey(fieldId)) {
-                _controller.fieldStateNotifiers[fieldId]!.value = field;
-              }
+            // Update field state notifier
+            if (_controller.fieldStateNotifiers.containsKey(fieldId)) {
+              _controller.fieldStateNotifiers[fieldId]!.value = field;
             }
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _isSubmitting = false;
-            formState.isSubmitting = false;
-            formState.isSubmitted = false;
-            formState.globalError = 'Submission failed: ${e.toString()}';
-            _controller.globalErrorNotifier.value = formState.globalError;
-          });
-        }
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+          formState.isSubmitting = false;
+          formState.isSubmitted = false;
+          formState.globalError = 'Submission failed: ${e.toString()}';
+          _controller.globalErrorNotifier.value = formState.globalError;
+        });
       }
     }
   }
